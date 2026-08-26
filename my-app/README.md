@@ -16,6 +16,12 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Authentication setup
+
+Copy `.env.example` to `.env.local`, set `DATABASE_URL` to your Neon connection string, and generate a long random `NEXTAUTH_SECRET`. This project uses Prisma; run `npm run prisma:push` once to create the `users` table in Neon before using signup, then run `npm run prisma:generate` after schema changes.
+
+The app uses NextAuth Credentials with JWT sessions. NextAuth stores the session in an HTTP-only cookie; passwords are stored only as bcrypt hashes and are never sent to the client.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

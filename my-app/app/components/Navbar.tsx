@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { data: session, status } = useSession();
+  const isSignedIn = status === "authenticated";
 
   return (
     <header className="relative flex items-center justify-between px-8 py-6 sm:px-16">
@@ -23,15 +26,17 @@ export default function Navbar() {
         <Link href="#" className="hover:text-black dark:hover:text-white">
           Pricing
         </Link>
-        <Link href="/login" className="hover:text-black dark:hover:text-white">
-          Log in
-        </Link>
-        <Link
-          href="/signup"
-          className="rounded-full bg-black px-4 py-2 text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-        >
-          Sign up
-        </Link>
+        {isSignedIn ? (
+          <>
+            <span className="text-zinc-500 dark:text-zinc-400">{session.user?.name ?? session.user?.email}</span>
+            <button type="button" onClick={() => signOut({ callbackUrl: "/" })} className="hover:text-black dark:hover:text-white">Log out</button>
+          </>
+        ) : (
+          <>
+            <Link href="/login" className="hover:text-black dark:hover:text-white">Log in</Link>
+            <Link href="/signup" className="rounded-full bg-black px-4 py-2 text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200">Sign up</Link>
+          </>
+        )}
       </nav>
 
       {/* Mobile menu button */}
@@ -52,12 +57,14 @@ export default function Navbar() {
           <Link href="#" onClick={() => setMenuOpen(false)}>
             Pricing
           </Link>
-          <Link href="/login" onClick={() => setMenuOpen(false)}>
-            Log in
-          </Link>
-          <Link href="/signup" onClick={() => setMenuOpen(false)}>
-            Sign up
-          </Link>
+          {isSignedIn ? (
+            <button type="button" onClick={() => signOut({ callbackUrl: "/" })} className="text-left">Log out</button>
+          ) : (
+            <>
+              <Link href="/login" onClick={() => setMenuOpen(false)}>Log in</Link>
+              <Link href="/signup" onClick={() => setMenuOpen(false)}>Sign up</Link>
+            </>
+          )}
         </div>
       )}
     </header>

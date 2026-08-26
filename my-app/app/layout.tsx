@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import Providers from "./components/Providers";
 
 export const metadata: Metadata = {
   title: "Acme",
@@ -16,9 +17,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="flex min-h-screen flex-col bg-white dark:bg-black">
-        <Navbar />
-        <main className="flex flex-1 flex-col">{children}</main>
-        <Footer />
+        <Providers>
+          <Navbar />
+          <main className="flex flex-1 flex-col">{children}</main>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );
