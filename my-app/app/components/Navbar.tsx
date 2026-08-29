@@ -59,7 +59,7 @@ export default function Navbar() {
       {/* Mobile menu button */}
       <button
         type="button"
-        onClick={() => setMenuOpen(!menuOpen)}
+        onClick={() => setMenuOpen((open)=>!open)}
         className="text-sm font-medium text-black md:hidden px-3 py-1.5 rounded-md"
         aria-label="Toggle menu"
       >
@@ -71,14 +71,14 @@ export default function Navbar() {
         <div className="absolute left-0 right-0 z-50 top-full mt-4 flex flex-col gap-4 bg-white/95 backdrop-blur-lg border border-gray-200 p-6 shadow-xl rounded-2xl md:hidden text-black">
           <Link
             href="#features"
-            onClick={() => setMenuOpen(false)}
+            onClick={() => setMenuOpen((open)=>!open)}
             className="hover:underline"
           >
             Features
           </Link>
           <Link
             href="#"
-            onClick={() => setMenuOpen(false)}
+            onClick={() => setMenuOpen((open)=>!open)}
             className="hover:underline"
           >
             Pricing

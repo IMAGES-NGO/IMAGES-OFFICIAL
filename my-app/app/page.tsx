@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Navbar from "./components/Navbar";
+import Hero from "./components/Hero";
 
 export default function Home() {
   return (
@@ -7,15 +8,16 @@ export default function Home() {
       <div className="bg-white h-screen w-full">
         <div className="m-4 h-screen rounded-2xl relative overflow-hidden">
           <Navbar />
-            <Image
-              src="/assets/images/bg-image.jpg"
-              alt="background"
-              fill
-              className="object-cover"
-              priority
-            />
-          </div>
+          <Image
+            src="/assets/images/bg-image.jpg"
+            alt="background"
+            fill
+            className="object-cover"
+            priority
+          />
+          <Hero />
         </div>
+      </div>
     </>
   );
 }
