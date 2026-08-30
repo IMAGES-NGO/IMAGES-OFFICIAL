@@ -7,28 +7,32 @@
 
 @font-face {
   font-family: "InstrumentSerif-Regular";
-  src: url("../public/assets/fonts/InstrumentSerif-Regular.ttf") format("truetype");
+  src: url("../public/assets/fonts/InstrumentSerif-Regular.ttf")
+    format("truetype");
   font-weight: 400;
   font-style: normal;
 }
 
 @font-face {
   font-family: "InstrumentSerif-Italic";
-  src: url("../public/assets/fonts/InstrumentSerif-Italic.ttf") format("truetype");
+  src: url("../public/assets/fonts/InstrumentSerif-Italic.ttf")
+    format("truetype");
   font-weight: 400;
   font-style: italic;
 }
 
 @font-face {
   font-family: "InstrumentSans-Regular";
-  src: url("../public/assets/fonts/InstrumentSans-Regular.ttf") format("truetype");
+  src: url("../public/assets/fonts/InstrumentSans-Regular.ttf")
+    format("truetype");
   font-weight: 400;
   font-style: normal;
 }
 
 @font-face {
   font-family: "InstrumentSans-Italic";
-  src: url("../public/assets/fonts/InstrumentSans-Italic.ttf") format("truetype");
+  src: url("../public/assets/fonts/InstrumentSans-Italic.ttf")
+    format("truetype");
   font-weight: 400;
   font-style: italic;
 }
@@ -40,3 +44,8 @@
   --font-secondary-italic: "InstrumentSans-Italic";
 }
 
+.custom-hero-bg {
+  background-image: url("/assets/images/bg-image.jpg");
+  @apply bg-cover bg-center bg-no-repeat;
+  z-index: 10;
+}

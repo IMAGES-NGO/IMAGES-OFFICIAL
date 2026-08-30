@@ -12,7 +12,7 @@ export default function Navbar() {
   const isSignedIn = status === "authenticated";
 
   return (
-    <header className="sticky top-0 z-50 rounded-xl bg-gradient-to-b from-slate-50/20 to-slate-50 backdrop-blur-md border border-gray-400/20 shadow-xl flex items-center justify-between px-8 py-4 m-4 md:m-4 md:mx-auto md:max-w-5xl md:rounded-2xl md:px-8">
+    <header className="sticky top-10 z-50 rounded-xl bg-linear-to-b from-slate-50/20 to-slate-50 backdrop-blur-md border border-gray-400/20 shadow-xl flex items-center justify-between px-8 py-4 m-4 md:m-4 md:mx-auto md:max-w-5xl md:rounded-2xl md:px-8">
       <Link
         href="/"
         className="font-primary text-lg font-semibold tracking-widest text-black hover:text-white transition-colors"
@@ -23,10 +23,10 @@ export default function Navbar() {
       {/* Desktop nav */}
       <nav className="font-secondary text-black hidden items-center gap-6 text-sm md:flex">
         <Link href="#features" className="hover:text-white transition-colors">
-          Features
+          About Us
         </Link>
         <Link href="#" className="hover:text-white transition-colors">
-          Pricing
+          Highlights
         </Link>
         {isSignedIn ? (
           <>
@@ -59,8 +59,8 @@ export default function Navbar() {
       {/* Mobile menu button */}
       <button
         type="button"
-        onClick={() => setMenuOpen((open)=>!open)}
-        className="text-sm font-medium text-black md:hidden px-3 py-1.5 rounded-md"
+        onClick={() => setMenuOpen((open) => !open)}
+        className="relative text-sm font-medium text-black md:hidden px-3 py-1.5 rounded-md"
         aria-label="Toggle menu"
       >
         {menuOpen ? <X /> : <SquareMenu />}
@@ -71,17 +71,17 @@ export default function Navbar() {
         <div className="absolute left-0 right-0 z-50 top-full mt-4 flex flex-col gap-4 bg-white/95 backdrop-blur-lg border border-gray-200 p-6 shadow-xl rounded-2xl md:hidden text-black">
           <Link
             href="#features"
-            onClick={() => setMenuOpen((open)=>!open)}
+            onClick={() => setMenuOpen((open) => !open)}
             className="hover:underline"
           >
-            Features
+            About Us
           </Link>
           <Link
             href="#"
-            onClick={() => setMenuOpen((open)=>!open)}
+            onClick={() => setMenuOpen((open) => !open)}
             className="hover:underline"
           >
-            Pricing
+            Highlights
           </Link>
           <hr className="border-gray-200" />
           {isSignedIn ? (

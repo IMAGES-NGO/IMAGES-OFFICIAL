@@ -1,23 +1,15 @@
-import Image from "next/image";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
+import { WhatWeDo } from "./components/WhatWeDo";
 
 export default function Home() {
   return (
     <>
-      <div className="bg-white h-screen w-full">
-        <div className="m-4 h-screen rounded-2xl relative overflow-hidden">
+      <div className="m-4 h-screen rounded-2xl relative custom-hero-bg">
           <Navbar />
-          <Image
-            src="/assets/images/bg-image.jpg"
-            alt="background"
-            fill
-            className="object-cover"
-            priority
-          />
           <Hero />
-        </div>
       </div>
+        <WhatWeDo />
     </>
   );
 }
