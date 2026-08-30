@@ -44,7 +44,7 @@ export default function Highlights() {
       <div className="m-4 h-screen rounded-2xl relative border border-slate-100" id="highlights">
         <div className="flex flex-col justify-center text-center items-center p-4">
           <div className="my-20">
-            <h1 className="font-secondary">HIGHLIGHTS</h1>
+            <h1 className="font-secondary text-sky-500 font-bold">HIGHLIGHTS</h1>
             <h1 className="font-primary-italic text-4xl">
               Meet. Connect. Learn. Make an Impact.
             </h1>
