@@ -15,19 +15,26 @@ export default function Navbar() {
       <header className="sticky mx-8 md:w-full top-10 z-50 rounded-xl bg-linear-to-b from-slate-50/20 to-slate-50 backdrop-blur-md border border-gray-400/20 shadow-xl flex items-center justify-between px-8 py-4 md:mx-auto md:max-w-5xl md:rounded-2xl md:px-8">
         <Link
           href="/"
-          className="font-primary text-lg font-semibold tracking-widest text-black hover:text-white transition-colors"
+          className="font-primary text-lg font-semibold tracking-widest text-black transition-all duration-200 hover:text-slate-900 hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
         >
           IMAGES
         </Link>
 
         {/* Desktop nav */}
-        <nav className="font-secondary text-black hidden items-center gap-6 text-sm md:flex">
-          <Link href="#features" className="hover:text-white transition-colors">
+        <nav className="font-secondary text-black hidden items-center gap-7 text-sm md:flex">
+          <Link
+            href="#features"
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="transition-all duration-200 hover:text-slate-900 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
+          >
             About Us
           </Link>
           <Link
             href="/highlights"
-            className="hover:text-white transition-colors"
+            className="transition-all duration-200 hover:text-slate-900 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
           >
             Highlights
           </Link>
@@ -39,7 +46,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="hover:text-white transition-colors"
+                className="transition-all duration-200 hover:text-slate-1000 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
               >
                 Log out
               </button>
@@ -48,13 +55,13 @@ export default function Navbar() {
             <>
               <Link
                 href="/login"
-                className="hover:text-white transition-colors"
+                className="transition-all duration-200 hover:text-slate-1000 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
               >
                 Log in
               </Link>
               <Link
                 href="/signup"
-                className="rounded-full bg-black px-4 py-2 text-white hover:bg-white hover:text-black transition-all"
+                className="inline-block rounded-full bg-black px-4 py-2 text-white hover:bg-white hover:text-black transition-all hover:scale-110 duration-200"
               >
                 Sign up
               </Link>
@@ -83,7 +90,7 @@ export default function Navbar() {
               About Us
             </Link>
             <Link
-              href="#"
+              href="/highlights"
               onClick={() => setMenuOpen((open) => !open)}
               className="hover:underline"
             >
