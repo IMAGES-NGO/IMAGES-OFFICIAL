@@ -22,6 +22,22 @@ Copy `.env.example` to `.env.local`, set `DATABASE_URL` to your Neon connection 
 
 The app uses NextAuth Credentials with JWT sessions. NextAuth stores the session in an HTTP-only cookie; passwords are stored only as bcrypt hashes and are never sent to the client.
 
+## Image Upload & Cloudinary Setup
+
+The project includes centralized image management at `/admin` using Cloudinary:
+
+1. Create a free account at [Cloudinary](https://cloudinary.com).
+2. Copy your **Cloud Name**, **API Key**, and **API Secret** from the Cloudinary Dashboard.
+3. Add them to your `.env.local`:
+   ```env
+   CLOUDINARY_CLOUD_NAME=your_cloud_name
+   CLOUDINARY_API_KEY=your_api_key
+   CLOUDINARY_API_SECRET=your_api_secret
+   ```
+4. Run `npm run prisma:push` to sync the `media_images` table with your Neon database.
+5. Navigate to `/admin` to upload, tag, and copy CDN URLs for NGO media assets.
+
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

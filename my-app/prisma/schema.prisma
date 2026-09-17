@@ -25,3 +25,18 @@ model User {
 
   @@map("users")
 }
+
+model MediaImage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title     String
+  url       String
+  publicId  String   @map("public_id")
+  category  String   @default("GENERAL")
+  format    String?
+  bytes     Int?
+  width     Int?
+  height    Int?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("media_images")
+}

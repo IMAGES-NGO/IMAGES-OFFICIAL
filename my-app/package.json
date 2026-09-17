@@ -14,6 +14,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
     "lucide-react": "^1.35.0",
     "next": "16.3.3",
     "next-auth": "^4.24.15",
