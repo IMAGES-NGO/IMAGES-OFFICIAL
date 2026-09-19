@@ -276,10 +276,23 @@ export default function AdminPage() {
             {status === "authenticated" ? (
               <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
                 <Shield className="h-4 w-4 text-emerald-500" />
-                <span className="hidden sm:inline">Admin:</span>
+                <span className="hidden sm:inline">
+                  {session.user?.role === "ADMIN" ? "Admin:" : "User:"}
+                </span>
                 <span className="font-medium text-zinc-900 dark:text-white">
                   {session.user?.name || session.user?.email}
                 </span>
+                {session.user?.role && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 font-semibold text-[10px] ${
+                      session.user.role === "ADMIN"
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                        : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                    }`}
+                  >
+                    {session.user.role}
+                  </span>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20">

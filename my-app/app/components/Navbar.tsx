@@ -40,9 +40,14 @@ export default function Navbar() {
           </Link>
           {isSignedIn ? (
             <>
-              <Link href="/admin" className="hover:text-white transition-colors font-medium">
-                Admin
-              </Link>
+              {session.user?.role === "ADMIN" && (
+                <Link
+                  href="/admin"
+                  className="transition-all duration-200 hover:text-slate-900 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2 font-medium"
+                >
+                  Admin
+                </Link>
+              )}
               <span className="text-zinc-600">
                 {session.user?.name ?? session.user?.email}
               </span>
@@ -102,13 +107,15 @@ export default function Navbar() {
             <hr className="border-gray-200" />
             {isSignedIn ? (
               <div className="flex flex-col gap-4">
-                <Link
-                  href="/admin"
-                  onClick={() => setMenuOpen(false)}
-                  className="hover:underline font-semibold"
-                >
-                  Admin Hub
-                </Link>
+                {session.user?.role === "ADMIN" && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setMenuOpen(false)}
+                    className="hover:underline font-semibold"
+                  >
+                    Admin Hub
+                  </Link>
+                )}
                 <span className="text-zinc-500 text-sm font-medium">
                   {session.user?.name ?? session.user?.email}
                 </span>
