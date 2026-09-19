@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
@@ -8,6 +10,27 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
 
 export async function GET(request: NextRequest) {
+  // Authentication & Authorization check:
+  // In production (or whenever a database is connected), strictly require role === "ADMIN".
+  // Allow unauthenticated local preview only during development before the database is provisioned.
+  const session = await getServerSession(authOptions);
+  const isAdmin = session?.user?.role === "ADMIN";
+  const isDevWithoutDb = process.env.NODE_ENV === "development" && !process.env.DATABASE_URL;
+
+  if (!isAdmin && !isDevWithoutDb) {
+    return NextResponse.json(
+      { error: "Unauthorized. Administrator access required." },
+      { status: 401 }
+    );
+  }
+
+  if (session && session.user?.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "Forbidden. Administrator access required." },
+      { status: 403 }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const category = searchParams.get("category");
 
@@ -17,12 +40,11 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    if (images.length > 0) {
-      return NextResponse.json({
-        images: images.map((img) => ({ ...img, isFromDatabase: true })),
-        databaseConnected: true,
-      });
-    }
+    // Database query succeeded - return database records
+    return NextResponse.json({
+      images: images.map((img) => ({ ...img, isFromDatabase: true })),
+      databaseConnected: true,
+    });
   } catch (error) {
     console.warn("Database query failed (DATABASE_URL may not be configured yet):", error);
   }
@@ -33,10 +55,12 @@ export async function GET(request: NextRequest) {
     const result = await cloudinary.api.resources({
       type: "upload",
       prefix: "ngo_images",
+      tags: true,
+      context: true,
       max_results: 50,
     });
 
-    const fallbackImages = (result.resources || []).map((res: {
+    let fallbackImages = (result.resources || []).map((res: {
       public_id: string;
       secure_url: string;
       format: string;
@@ -44,14 +68,25 @@ export async function GET(request: NextRequest) {
       width: number;
       height: number;
       created_at: string;
+      tags?: string[];
+      context?: { custom?: { category?: string; title?: string } };
     }) => {
-      const cleanTitle = res.public_id.replace(/^ngo_images\//, "").replace(/[-_]/g, " ");
+      const cleanTitle = res.context?.custom?.title
+        ? decodeURIComponent(res.context.custom.title)
+        : res.public_id.replace(/^ngo_images\//, "").replace(/[-_]/g, " ");
+
+      const tagCategory = (res.tags || []).find((t: string) =>
+        ["general", "highlights", "events", "about"].includes(t.toLowerCase())
+      );
+      const cat =
+        res.context?.custom?.category || (tagCategory ? tagCategory.toUpperCase() : "GENERAL");
+
       return {
         id: res.public_id,
         title: cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1),
         url: res.secure_url,
         publicId: res.public_id,
-        category: "GENERAL",
+        category: cat,
         format: res.format,
         bytes: res.bytes,
         width: res.width,
@@ -61,6 +96,13 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // Apply category filtering in fallback mode
+    if (category && category !== "ALL") {
+      fallbackImages = fallbackImages.filter(
+        (img: { category: string }) => img.category.toUpperCase() === category.toUpperCase()
+      );
+    }
+
     return NextResponse.json({ images: fallbackImages, databaseConnected: false });
   } catch (cloudinaryErr) {
     console.warn("Cloudinary direct fetch error:", cloudinaryErr);
@@ -69,6 +111,27 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Authentication & Authorization check:
+  // In production (or whenever a database is connected), strictly require role === "ADMIN".
+  // Allow unauthenticated local preview only during development before the database is provisioned.
+  const session = await getServerSession(authOptions);
+  const isAdmin = session?.user?.role === "ADMIN";
+  const isDevWithoutDb = process.env.NODE_ENV === "development" && !process.env.DATABASE_URL;
+
+  if (!isAdmin && !isDevWithoutDb) {
+    return NextResponse.json(
+      { error: "Unauthorized. Administrator access required." },
+      { status: 401 }
+    );
+  }
+
+  if (session && session.user?.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "Forbidden. Administrator access required." },
+      { status: 403 }
+    );
+  }
+
   try {
     const hasCredentials =
       Boolean(process.env.CLOUDINARY_URL) ||
@@ -114,10 +177,11 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Upload to Cloudinary
+    // Upload to Cloudinary with tags and context metadata
     const uploadResult = await uploadToCloudinary(buffer, {
       folder: "ngo_images",
       tags: [category.toLowerCase(), "ngo"],
+      context: { category, title: encodeURIComponent(title) },
     });
 
     // Save metadata to Prisma database (with fallback for testing before DB is provisioned)

@@ -24,7 +24,7 @@ The app uses NextAuth Credentials with JWT sessions. NextAuth stores the session
 
 ## Image Upload & Cloudinary Setup
 
-The project includes centralized image management at `/admin` using Cloudinary:
+The project includes centralized image management at `/admin/media` using Cloudinary:
 
 1. Create a free account at [Cloudinary](https://cloudinary.com).
 2. Copy your **Cloud Name**, **API Key**, and **API Secret** from the Cloudinary Dashboard.
@@ -35,7 +35,7 @@ The project includes centralized image management at `/admin` using Cloudinary:
    CLOUDINARY_API_SECRET=your_api_secret
    ```
 4. Run `npm run prisma:push` to sync the `media_images` table with your Neon database.
-5. Navigate to `/admin` to upload, tag, and copy CDN URLs for NGO media assets.
+5. Navigate to `/admin/media` to upload, tag, and copy CDN URLs for NGO media assets.
 
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.

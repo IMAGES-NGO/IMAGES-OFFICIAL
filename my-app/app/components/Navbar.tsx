@@ -42,7 +42,7 @@ export default function Navbar() {
             <>
               {session.user?.role === "ADMIN" && (
                 <Link
-                  href="/admin"
+                  href="/admin/media"
                   className="transition-all duration-200 hover:text-slate-900 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2 font-medium"
                 >
                   Admin
@@ -109,7 +109,7 @@ export default function Navbar() {
               <div className="flex flex-col gap-4">
                 {session.user?.role === "ADMIN" && (
                   <Link
-                    href="/admin"
+                    href="/admin/media"
                     onClick={() => setMenuOpen(false)}
                     className="hover:underline font-semibold"
                   >

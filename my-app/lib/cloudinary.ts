@@ -32,6 +32,7 @@ export async function uploadToCloudinary(
     folder?: string;
     publicId?: string;
     tags?: string[];
+    context?: Record<string, string>;
   }
 ): Promise<CloudinaryUploadResult> {
   return new Promise((resolve, reject) => {
@@ -40,6 +41,7 @@ export async function uploadToCloudinary(
         folder: options?.folder || "ngo_images",
         public_id: options?.publicId,
         tags: options?.tags,
+        context: options?.context,
         resource_type: "image",
       },
       (error: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
