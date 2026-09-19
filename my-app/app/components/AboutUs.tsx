@@ -6,7 +6,7 @@ import { PartyPopper } from "lucide-react";
 export default function About() {
   return (
     <>
-      <div className="flex flex-col text-center m-4 p-4 justify-center">
+      <div className="flex flex-col text-center m-4 p-4 justify-center" id="features">
         <h1 className="text-sky-500 font-secondary font-bold mt-10">ABOUT US</h1>
         <h1 className="text-4xl font-primary-italic my-5 mt-0 mb-20">What do we do ?</h1>
 

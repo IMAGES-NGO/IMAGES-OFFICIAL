@@ -6,15 +6,7 @@
 }
 
 @font-face {
-  font-family: "InstrumentSerif-Regular";
-  src: url("../public/assets/fonts/InstrumentSerif-Regular.ttf")
-    format("truetype");
-  font-weight: 400;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "InstrumentSerif-Italic";
+  font-family: "Instrument Serif";
   src: url("../public/assets/fonts/InstrumentSerif-Italic.ttf")
     format("truetype");
   font-weight: 400;
@@ -22,7 +14,15 @@
 }
 
 @font-face {
-  font-family: "InstrumentSans-Regular";
+  font-family: "Instrument Serif";
+  src: url("../public/assets/fonts/InstrumentSerif-Italic.ttf")
+    format("truetype");
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "Instrument Sans";
   src: url("../public/assets/fonts/InstrumentSans-Regular.ttf")
     format("truetype");
   font-weight: 400;
@@ -30,7 +30,7 @@
 }
 
 @font-face {
-  font-family: "InstrumentSans-Italic";
+  font-family: "Instrument Sans";
   src: url("../public/assets/fonts/InstrumentSans-Italic.ttf")
     format("truetype");
   font-weight: 400;
@@ -38,10 +38,14 @@
 }
 
 @theme {
-  --font-primary: "InstrumentSerif-Regular";
-  --font-primary-italic: "InstrumentSerif-Italic";
-  --font-secondary: "InstrumentSans-Regular";
-  --font-secondary-italic: "InstrumentSans-Italic";
+  --font-primary: "Instrument Serif";
+  --font-primary-italic: "Instrument Serif";
+  --font-secondary: "Instrument Sans";
+  --font-secondary-italic: "Instrument Sans";
+}
+
+body {
+  font-family: "Instrument Sans", sans-serif;
 }
 
 .custom-hero-bg {
