@@ -40,6 +40,7 @@ export async function POST(request: Request) {
         username,
         email,
         passwordHash,
+        role: parsed.data.role,
         otpHash: createHash("sha256").update(otp).digest("hex"),
         otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
       },
