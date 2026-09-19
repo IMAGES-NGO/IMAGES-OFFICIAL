@@ -7,11 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
 model User {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name         String
+  username     String   @unique
   email        String   @unique
   passwordHash String   @map("password_hash")
+  role         UserRole @default(MEMBER)
+  verifiedAt   DateTime? @map("verified_at")
+  otpHash      String?  @map("otp_hash")
+  otpExpiresAt DateTime? @map("otp_expires_at")
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("users")

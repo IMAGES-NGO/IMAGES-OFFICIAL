@@ -31,9 +31,23 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        return { id: user.id, name: user.name, email: user.email };
+        if (!user.verifiedAt || user.role !== parsed.data.role) {
+          return null;
+        }
+
+        return { id: user.id, name: user.username, email: user.email, role: user.role };
       },
     }),
   ],
   pages: { signIn: "/login" },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) token.role = user.role;
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) session.user.role = token.role as "ADMIN" | "MEMBER";
+      return session;
+    },
+  },
 };
