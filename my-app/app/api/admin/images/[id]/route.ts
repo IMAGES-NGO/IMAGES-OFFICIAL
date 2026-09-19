@@ -10,32 +10,27 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    let publicId = id;
 
-    const existingImage = await db.mediaImage.findUnique({
-      where: { id },
-    });
-
-    if (!existingImage) {
-      return NextResponse.json({ error: "Image not found." }, { status: 404 });
-    }
-
-    // Try deleting from Cloudinary if credentials exist
-    if (
-      process.env.CLOUDINARY_CLOUD_NAME &&
-      process.env.CLOUDINARY_API_KEY &&
-      process.env.CLOUDINARY_API_SECRET
-    ) {
-      try {
-        await deleteFromCloudinary(existingImage.publicId);
-      } catch (cloudinaryError) {
-        console.warn("Could not delete from Cloudinary (publicId may have changed or already deleted):", cloudinaryError);
+    // Check if database has record
+    try {
+      const existingImage = await db.mediaImage.findUnique({
+        where: { id },
+      });
+      if (existingImage) {
+        publicId = existingImage.publicId;
+        await db.mediaImage.delete({ where: { id } });
       }
+    } catch (dbErr) {
+      console.warn("Database lookup skipped or failed:", dbErr);
     }
 
-    // Delete record from Prisma database
-    await db.mediaImage.delete({
-      where: { id },
-    });
+    // Always delete asset from Cloudinary
+    try {
+      await deleteFromCloudinary(publicId);
+    } catch (cloudinaryError) {
+      console.warn("Cloudinary delete warning:", cloudinaryError);
+    }
 
     return NextResponse.json({ success: true, message: "Image deleted successfully." });
   } catch (error) {

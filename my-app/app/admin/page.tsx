@@ -19,6 +19,7 @@ import {
   Layers,
   Search,
   RefreshCw,
+  Database,
 } from "lucide-react";
 
 interface MediaItem {
@@ -32,6 +33,7 @@ interface MediaItem {
   width: number | null;
   height: number | null;
   createdAt: string;
+  isFromDatabase?: boolean;
 }
 
 const CATEGORIES = ["ALL", "GENERAL", "HIGHLIGHTS", "EVENTS", "ABOUT"];
@@ -41,6 +43,7 @@ export default function AdminPage() {
 
   // Media & Upload States
   const [images, setImages] = useState<MediaItem[]>([]);
+  const [isDbConnected, setIsDbConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -72,6 +75,9 @@ export default function AdminPage() {
       const data = await res.json();
       if (res.ok && data.images) {
         setImages(data.images);
+        if (typeof data.databaseConnected === "boolean") {
+          setIsDbConnected(data.databaseConnected);
+        }
       }
     } catch (err) {
       console.error("Failed to load images", err);
@@ -92,6 +98,9 @@ export default function AdminPage() {
         const data = await res.json();
         if (!ignore && res.ok && data.images) {
           setImages(data.images);
+          if (typeof data.databaseConnected === "boolean") {
+            setIsDbConnected(data.databaseConnected);
+          }
         }
       } catch (err) {
         console.error("Failed to load images", err);
@@ -182,6 +191,12 @@ export default function AdminPage() {
       setUploadSuccess("Image uploaded and hosted successfully!");
       clearFileSelection();
       setTitle("");
+      
+      // Instantly show the uploaded image in the gallery
+      if (data.image) {
+        setImages((prev) => [data.image, ...prev.filter((item) => item.id !== data.image.id)]);
+      }
+      
       refreshImages();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Upload failed.";
@@ -202,7 +217,7 @@ export default function AdminPage() {
 
     try {
       setDeletingId(id);
-      const res = await fetch(`/api/admin/images/${id}`, {
+      const res = await fetch(`/api/admin/images/${encodeURIComponent(id)}`, {
         method: "DELETE",
       });
 
@@ -446,9 +461,21 @@ export default function AdminPage() {
                     <Layers className="h-5 w-5 text-sky-500" />
                     Centralized Gallery
                   </h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {filteredImages.length} {filteredImages.length === 1 ? "image" : "images"} available
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {filteredImages.length} {filteredImages.length === 1 ? "image" : "images"} available
+                    </p>
+                    {isDbConnected === false && (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+                        • <Database className="h-3 w-3" /> Cloudinary storage mode (DB unconfigured)
+                      </span>
+                    )}
+                    {isDbConnected === true && (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+                        • <Database className="h-3 w-3" /> PostgreSQL synced
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -524,10 +551,25 @@ export default function AdminPage() {
                             sizes="(max-width: 640px) 100vw, 350px"
                             className="object-cover group-hover:scale-105 transition-transform duration-300"
                           />
-                          <div className="absolute top-2 left-2">
+                          <div className="absolute top-2 left-2 flex items-center gap-1.5">
                             <span className="rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[10px] font-semibold text-white uppercase tracking-wider">
                               {img.category}
                             </span>
+                            {img.isFromDatabase === false ? (
+                              <span
+                                title="Stored on Cloudinary (PostgreSQL not connected)"
+                                className="rounded-md bg-amber-500/80 backdrop-blur-md px-1.5 py-0.5 text-[9px] font-medium text-black flex items-center gap-1"
+                              >
+                                Cloudinary Only
+                              </span>
+                            ) : (
+                              <span
+                                title="Synced with Database & Cloudinary"
+                                className="rounded-md bg-emerald-500/80 backdrop-blur-md px-1.5 py-0.5 text-[9px] font-medium text-white flex items-center gap-1"
+                              >
+                                DB Synced
+                              </span>
+                            )}
                           </div>
                         </div>
 
