@@ -25,3 +25,37 @@ model User {
 
   @@map("users")
 }
+
+model MediaImage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title     String
+  url       String
+  publicId  String   @map("public_id")
+  category  String   @default("GENERAL")
+  format    String?
+  bytes     Int?
+  width     Int?
+  height    Int?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("media_images")
+}
+
+model Event {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String
+  description    String
+  eventType      String   @default("COMMUNITY") @map("event_type")
+  images         String[] @default([])
+  participantIds String[] @default([]) @map("participant_ids")
+  eventDate      DateTime @map("event_date")
+  location       String
+  startTime      String?  @map("start_time")
+  endTime        String?  @map("end_time")
+  status         String   @default("UPCOMING")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("events")
+}
+

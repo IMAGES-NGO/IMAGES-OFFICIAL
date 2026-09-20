@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { verifyOtpSchema } from "@/lib/validations/auth";
 
 function VerifyForm() {
@@ -13,6 +13,40 @@ function VerifyForm() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown((prev) => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  const handleResend = async () => {
+    if (!email || cooldown > 0 || isResending) return;
+    setError("");
+    setMessage("");
+    setIsResending(true);
+
+    try {
+      const res = await fetch("/api/auth/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to resend code.");
+      } else {
+        setMessage(data.message || "A new code was sent.");
+        setCooldown(60);
+      }
+    } catch {
+      setError("Network error while resending code.");
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -60,7 +94,23 @@ function VerifyForm() {
             {isSubmitting ? "Verifying..." : "Verify email"}
           </button>
         </form>
-        <p className="mt-6 text-center text-sm text-zinc-600"><Link href="/login" className="font-medium text-black underline">Back to login</Link></p>
+        <div className="mt-4 flex items-center justify-between text-sm">
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={cooldown > 0 || isResending}
+            className="text-zinc-600 hover:text-black underline disabled:no-underline disabled:text-zinc-400"
+          >
+            {isResending
+              ? "Sending..."
+              : cooldown > 0
+              ? `Resend code in ${cooldown}s`
+              : "Resend verification code"}
+          </button>
+          <Link href="/login" className="font-medium text-black underline">
+            Back to login
+          </Link>
+        </div>
       </div>
     </div>
   );

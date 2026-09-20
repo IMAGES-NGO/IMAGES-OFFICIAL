@@ -47,11 +47,14 @@ export default function Footer() {
             Explore
           </h2>
           <nav className="mt-5 flex flex-col gap-3 text-sm text-slate-400">
-            <Link className="transition-colors hover:text-white" href="#features">
+            <Link className="transition-colors hover:text-white" href="/#features">
               About us
             </Link>
             <Link className="transition-colors hover:text-white" href="/highlights">
               Highlights
+            </Link>
+            <Link className="transition-colors hover:text-white" href="/events">
+              Events
             </Link>
             <Link className="transition-colors hover:text-white" href="/login">
               Member login

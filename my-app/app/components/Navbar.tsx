@@ -4,10 +4,12 @@ import { SquareMenu } from "lucide-react";
 import { X } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
   const { data: session, status } = useSession();
   const isSignedIn = status === "authenticated";
 
@@ -23,10 +25,12 @@ export default function Navbar() {
         {/* Desktop nav */}
         <nav className="font-secondary text-black hidden items-center gap-7 text-sm md:flex">
           <Link
-            href="#features"
+            href="/#features"
             onClick={(e) => {
-              e.preventDefault();
-              document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+              if (pathname === "/") {
+                e.preventDefault();
+                document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+              }
             }}
             className="transition-all duration-200 hover:text-slate-900 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
           >
@@ -38,11 +42,22 @@ export default function Navbar() {
           >
             Highlights
           </Link>
+          <Link
+            href="/events"
+            className="transition-all duration-200 hover:text-slate-900 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
+          >
+            Events
+          </Link>
           {isSignedIn ? (
             <>
-              <span className="text-zinc-600">
-                {session.user?.name ?? session.user?.email}
-              </span>
+              {session.user?.role === "ADMIN" && (
+                <Link
+                  href="/admin/dashboard"
+                  className="transition-all duration-200 hover:text-slate-900 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2 font-medium"
+                >
+                  Admin
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: "/" })}
@@ -83,8 +98,14 @@ export default function Navbar() {
         {menuOpen && (
           <div className="absolute left-0 right-0 z-50 top-full mt-4 flex flex-col gap-4 bg-white/95 backdrop-blur-lg border border-gray-200 p-6 shadow-xl rounded-2xl md:hidden text-black">
             <Link
-              href="#features"
-              onClick={() => setMenuOpen((open) => !open)}
+              href="/#features"
+              onClick={(e) => {
+                setMenuOpen(false);
+                if (pathname === "/") {
+                  e.preventDefault();
+                  document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+                }
+              }}
               className="hover:underline"
             >
               About Us
@@ -96,12 +117,25 @@ export default function Navbar() {
             >
               Highlights
             </Link>
+            <Link
+              href="/events"
+              onClick={() => setMenuOpen((open) => !open)}
+              className="hover:underline font-medium"
+            >
+              Events
+            </Link>
             <hr className="border-gray-200" />
             {isSignedIn ? (
               <div className="flex flex-col gap-4">
-                <span className="text-zinc-500 text-sm font-medium">
-                  {session.user?.name ?? session.user?.email}
-                </span>
+                {session.user?.role === "ADMIN" && (
+                  <Link
+                    href="/admin/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                    className="hover:underline font-semibold"
+                  >
+                    Admin Dashboard
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={() => signOut({ callbackUrl: "/" })}
