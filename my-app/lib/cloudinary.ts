@@ -2,23 +2,32 @@ import { v2 as cloudinary } from "cloudinary";
 import type { UploadApiResponse } from "cloudinary";
 
 /**
- * Ensures Cloudinary is configured with latest environment variables
+ * Normalizes and configures Cloudinary credentials from environment variables
  */
 export function configureCloudinary() {
-  if (process.env.CLOUDINARY_URL) {
-    cloudinary.config({
-      cloudinary_url: process.env.CLOUDINARY_URL,
-      secure: true,
-    });
-  } else {
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-      secure: true,
-    });
+  let cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim().replace(/^["']+|["']+$/g, "") || undefined;
+  let apiKey = process.env.CLOUDINARY_API_KEY?.trim().replace(/^["']+|["']+$/g, "") || undefined;
+  let apiSecret = process.env.CLOUDINARY_API_SECRET?.trim().replace(/^["']+|["']+$/g, "") || undefined;
+
+  const rawUrl = process.env.CLOUDINARY_URL?.trim().replace(/^["']+|["']+$/g, "");
+  if (rawUrl) {
+    const match = rawUrl.match(/^cloudinary:\/\/([^:]+):([^@]+)@(.+)$/);
+    if (match) {
+      apiKey = apiKey || match[1];
+      apiSecret = apiSecret || match[2];
+      cloudName = cloudName || match[3].split(/[/?#]/)[0];
+    }
+    process.env.CLOUDINARY_URL = rawUrl;
   }
-  return cloudinary;
+
+  cloudinary.config({
+    cloud_name: cloudName,
+    api_key: apiKey,
+    api_secret: apiSecret,
+    secure: true,
+  });
+
+  return { cloudinary, cloudName, apiKey, apiSecret };
 }
 
 // Initial configuration
@@ -35,7 +44,7 @@ export interface CloudinaryUploadResult {
 
 /**
  * Upload an image buffer directly to Cloudinary using base64 data URI
- * to ensure reliable execution in Next.js Server Components and Route Handlers.
+ * with automatic parameter fallback for strict account permission tiers.
  */
 export async function uploadToCloudinary(
   buffer: Buffer,
@@ -47,10 +56,7 @@ export async function uploadToCloudinary(
     mimeType?: string;
   }
 ): Promise<CloudinaryUploadResult> {
-  configureCloudinary();
-
-  const cloudInstance = cloudinary;
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || (process.env.CLOUDINARY_URL ? "URL" : null);
+  const { cloudName } = configureCloudinary();
 
   if (!cloudName || cloudName === "your_cloud_name") {
     throw new Error(
@@ -62,7 +68,7 @@ export async function uploadToCloudinary(
   const dataUri = `data:${mimeType};base64,${buffer.toString("base64")}`;
 
   try {
-    const result: UploadApiResponse = await cloudInstance.uploader.upload(dataUri, {
+    const result: UploadApiResponse = await cloudinary.uploader.upload(dataUri, {
       folder: options?.folder || "ngo_images",
       public_id: options?.publicId,
       tags: options?.tags,
@@ -83,8 +89,33 @@ export async function uploadToCloudinary(
       height: result.height,
     };
   } catch (error: unknown) {
+    const errObj = error as { message?: string; error?: { message?: string }; http_code?: number };
+    const errMsg = String(errObj?.error?.message || errObj?.message || error);
+
+    // If Cloudinary rejected due to 403 Forbidden, permission, or metadata restrictions, retry with barebones parameters
+    if (errMsg.includes("403") || errMsg.includes("Forbidden") || errMsg.includes("context") || errMsg.includes("folder")) {
+      try {
+        console.warn("Retrying Cloudinary upload with minimal parameters due to permission error:", errMsg);
+        const retryResult: UploadApiResponse = await cloudinary.uploader.upload(dataUri, {
+          resource_type: "image",
+        });
+
+        if (retryResult && retryResult.secure_url) {
+          return {
+            secure_url: retryResult.secure_url,
+            public_id: retryResult.public_id,
+            format: retryResult.format,
+            bytes: retryResult.bytes,
+            width: retryResult.width,
+            height: retryResult.height,
+          };
+        }
+      } catch (retryError) {
+        console.warn("Cloudinary minimal retry also failed:", retryError);
+      }
+    }
+
     console.error("Cloudinary upload error details:", error);
-    const errObj = error as { message?: string; error?: { message?: string } };
     const specificMessage =
       errObj?.error?.message || errObj?.message || "Failed to upload image to Cloudinary";
     throw new Error(specificMessage);
@@ -102,4 +133,3 @@ export async function deleteFromCloudinary(publicId: string) {
 }
 
 export default cloudinary;
-

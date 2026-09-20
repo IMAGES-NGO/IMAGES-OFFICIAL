@@ -58,9 +58,6 @@ export default function Navbar() {
                   Admin
                 </Link>
               )}
-              <span className="text-zinc-600">
-                {session.user?.name ?? session.user?.email}
-              </span>
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: "/" })}
@@ -139,9 +136,6 @@ export default function Navbar() {
                     Admin Dashboard
                   </Link>
                 )}
-                <span className="text-zinc-500 text-sm font-medium">
-                  {session.user?.name ?? session.user?.email}
-                </span>
                 <button
                   type="button"
                   onClick={() => signOut({ callbackUrl: "/" })}

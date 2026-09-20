@@ -20,22 +20,43 @@ export const authOptions: NextAuthOptions = {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const user = await db.user.findUnique({
-          where: { email: parsed.data.email.toLowerCase() },
-        });
-        const passwordMatches = await bcrypt.compare(
-          parsed.data.password,
-          user?.passwordHash ?? unusablePasswordHash,
-        );
-        if (!user || !passwordMatches) {
-          return null;
+        const normalizedEmail = parsed.data.email.toLowerCase();
+
+        // In development mode, allow dev admin login for local testing
+        const isDev = process.env.NODE_ENV === "development";
+        if (isDev && normalizedEmail === "admin@imagesngo.org" && parsed.data.role === "ADMIN") {
+          const devPassword = process.env.DEV_ADMIN_PASSWORD || "AdminImages2026!";
+          if (parsed.data.password === devPassword) {
+            return {
+              id: "usr-dev-admin",
+              name: "Admin Developer",
+              email: "admin@imagesngo.org",
+              role: "ADMIN" as const,
+            };
+          }
         }
 
-        if (!user.verifiedAt || user.role !== parsed.data.role) {
+        try {
+          const user = await db.user.findUnique({
+            where: { email: normalizedEmail },
+          });
+          const passwordMatches = await bcrypt.compare(
+            parsed.data.password,
+            user?.passwordHash ?? unusablePasswordHash,
+          );
+          if (!user || !passwordMatches) {
+            return null;
+          }
+
+          if (!user.verifiedAt || user.role !== parsed.data.role) {
+            return null;
+          }
+
+          return { id: user.id, name: user.username, email: user.email, role: user.role };
+        } catch (dbError) {
+          console.warn("Database lookup error during authentication:", dbError);
           return null;
         }
-
-        return { id: user.id, name: user.username, email: user.email, role: user.role };
       },
     }),
   ],

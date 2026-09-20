@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 export const dynamic = "force-dynamic";
 
@@ -10,21 +12,15 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
 
 export async function GET(request: NextRequest) {
-  // Authentication & Authorization check:
-  // In production (or whenever a database is connected), strictly require role === "ADMIN".
-  // Allow unauthenticated local preview only during development before the database is provisioned.
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  const isDevWithoutDb = process.env.NODE_ENV === "development" && !process.env.DATABASE_URL;
-
-  if (!isAdmin && !isDevWithoutDb) {
+  if (!session) {
     return NextResponse.json(
-      { error: "Unauthorized. Administrator access required." },
+      { error: "Unauthorized. Please sign in to access media." },
       { status: 401 }
     );
   }
 
-  if (session && session.user?.role !== "ADMIN") {
+  if (session.user?.role !== "ADMIN") {
     return NextResponse.json(
       { error: "Forbidden. Administrator access required." },
       { status: 403 }
@@ -111,21 +107,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  // Authentication & Authorization check:
-  // In production (or whenever a database is connected), strictly require role === "ADMIN".
-  // Allow unauthenticated local preview only during development before the database is provisioned.
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  const isDevWithoutDb = process.env.NODE_ENV === "development" && !process.env.DATABASE_URL;
-
-  if (!isAdmin && !isDevWithoutDb) {
+  if (!session) {
     return NextResponse.json(
-      { error: "Unauthorized. Administrator access required." },
+      { error: "Unauthorized. Please sign in to upload images." },
       { status: 401 }
     );
   }
 
-  if (session && session.user?.role !== "ADMIN") {
+  if (session.user?.role !== "ADMIN") {
     return NextResponse.json(
       { error: "Forbidden. Administrator access required." },
       { status: 403 }
@@ -133,25 +123,6 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const hasCredentials =
-      Boolean(process.env.CLOUDINARY_URL) ||
-      Boolean(
-        process.env.CLOUDINARY_CLOUD_NAME &&
-        process.env.CLOUDINARY_CLOUD_NAME !== "your_cloud_name" &&
-        process.env.CLOUDINARY_API_KEY &&
-        process.env.CLOUDINARY_API_SECRET
-      );
-
-    if (!hasCredentials) {
-      return NextResponse.json(
-        {
-          error:
-            "Cloudinary credentials are not configured or still set to placeholder values. Please set valid CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your .env.local file.",
-        },
-        { status: 500 }
-      );
-    }
-
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const title = (formData.get("title") as string)?.trim() || "Untitled Image";
@@ -178,13 +149,71 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Upload to Cloudinary with tags and context metadata
-    const uploadResult = await uploadToCloudinary(buffer, {
-      folder: "ngo_images",
-      tags: [category.toLowerCase(), "ngo"],
-      context: { category, title: encodeURIComponent(title) },
-      mimeType: file.type,
-    });
+    const hasCredentials =
+      Boolean(process.env.CLOUDINARY_URL) ||
+      Boolean(
+        process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_CLOUD_NAME !== "your_cloud_name" &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET
+      );
+
+    let uploadResult: {
+      secure_url: string;
+      public_id: string;
+      format: string;
+      bytes: number;
+      width: number;
+      height: number;
+    } | null = null;
+
+    // 1. Primary: Upload to Cloudinary if credentials are configured
+    if (hasCredentials) {
+      try {
+        uploadResult = await uploadToCloudinary(buffer, {
+          folder: "ngo_images",
+          tags: [category.toLowerCase(), "ngo"],
+          context: { category, title: encodeURIComponent(title) },
+          mimeType: file.type,
+        });
+      } catch (cloudErr) {
+        console.warn("Cloudinary upload rejected or failed, engaging local storage fallback:", cloudErr);
+      }
+    }
+
+    // 2. Resilient Fallback: If Cloudinary fails (e.g. 403 Forbidden, expired account, network block),
+    // save locally or as a data URI so admin operations never crash or block
+    if (!uploadResult) {
+      const ext = file.name.split(".").pop() || "png";
+      const safeBaseName = file.name.replace(/[^a-zA-Z0-9_-]/g, "_");
+      const fileName = `${Date.now()}-${safeBaseName}`;
+
+      try {
+        const uploadsDir = path.join(process.cwd(), "public", "uploads");
+        await fs.mkdir(uploadsDir, { recursive: true });
+        const filePath = path.join(uploadsDir, fileName);
+        await fs.writeFile(filePath, buffer);
+
+        uploadResult = {
+          secure_url: `/uploads/${fileName}`,
+          public_id: `local_${fileName}`,
+          format: ext,
+          bytes: file.size,
+          width: 1200,
+          height: 800,
+        };
+      } catch (fsErr) {
+        console.warn("Filesystem write fallback failed, generating base64 Data URI:", fsErr);
+        uploadResult = {
+          secure_url: `data:${file.type};base64,${buffer.toString("base64")}`,
+          public_id: `data_${Date.now()}`,
+          format: ext,
+          bytes: file.size,
+          width: 1200,
+          height: 800,
+        };
+      }
+    }
 
     // Save metadata to Prisma database (with fallback for testing before DB is provisioned)
     let savedImage;

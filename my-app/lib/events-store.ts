@@ -5,7 +5,7 @@ export interface DevEventItem {
   eventType: string;
   images: string[];
   participantIds: string[];
-  participants?: Array<{ id: string; username: string; email: string }>;
+  participants?: Array<{ id: string; username: string }>;
   eventDate: string;
   location: string;
   startTime?: string | null;
@@ -29,9 +29,9 @@ const initialSeedEvents: DevEventItem[] = [
     ],
     participantIds: ["usr-dev-1", "usr-dev-2", "usr-dev-4"],
     participants: [
-      { id: "usr-dev-1", username: "aryan_vasudev", email: "aryan@imagesngo.org" },
-      { id: "usr-dev-2", username: "priya_sharma", email: "priya@imagesngo.org" },
-      { id: "usr-dev-4", username: "ananya_singh", email: "ananya@imagesngo.org" },
+      { id: "usr-dev-1", username: "aryan_vasudev" },
+      { id: "usr-dev-2", username: "priya_sharma" },
+      { id: "usr-dev-4", username: "ananya_singh" },
     ],
     eventDate: new Date("2026-03-12T10:00:00.000Z").toISOString(),
     location: "Kharar, Mohali, Punjab",
@@ -53,9 +53,9 @@ const initialSeedEvents: DevEventItem[] = [
     ],
     participantIds: ["usr-dev-1", "usr-dev-3", "usr-dev-5"],
     participants: [
-      { id: "usr-dev-1", username: "aryan_vasudev", email: "aryan@imagesngo.org" },
-      { id: "usr-dev-3", username: "rohit_verma", email: "rohit@imagesngo.org" },
-      { id: "usr-dev-5", username: "karan_malhotra", email: "karan@imagesngo.org" },
+      { id: "usr-dev-1", username: "aryan_vasudev" },
+      { id: "usr-dev-3", username: "rohit_verma" },
+      { id: "usr-dev-5", username: "karan_malhotra" },
     ],
     eventDate: new Date("2026-04-05T14:00:00.000Z").toISOString(),
     location: "Main Auditorium, UIET Campus, Chandigarh",
@@ -77,10 +77,10 @@ const initialSeedEvents: DevEventItem[] = [
     ],
     participantIds: ["usr-dev-2", "usr-dev-3", "usr-dev-4", "usr-dev-5"],
     participants: [
-      { id: "usr-dev-2", username: "priya_sharma", email: "priya@imagesngo.org" },
-      { id: "usr-dev-3", username: "rohit_verma", email: "rohit@imagesngo.org" },
-      { id: "usr-dev-4", username: "ananya_singh", email: "ananya@imagesngo.org" },
-      { id: "usr-dev-5", username: "karan_malhotra", email: "karan@imagesngo.org" },
+      { id: "usr-dev-2", username: "priya_sharma" },
+      { id: "usr-dev-3", username: "rohit_verma" },
+      { id: "usr-dev-4", username: "ananya_singh" },
+      { id: "usr-dev-5", username: "karan_malhotra" },
     ],
     eventDate: new Date("2026-04-20T09:30:00.000Z").toISOString(),
     location: "Institute for the Blind, Sector 26, Chandigarh",

@@ -49,12 +49,12 @@ export async function GET(request: NextRequest) {
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const validUuids = allParticipantIds.filter((id) => UUID_REGEX.test(id));
 
-    let usersMap = new Map<string, { id: string; username: string; email: string }>();
+    let usersMap = new Map<string, { id: string; username: string }>();
     if (validUuids.length > 0) {
       try {
         const users = await db.user.findMany({
           where: { id: { in: validUuids } },
-          select: { id: true, username: true, email: true },
+          select: { id: true, username: true },
         });
         usersMap = new Map(users.map((u) => [u.id, u]));
       } catch (err) {
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     const enrichedEvents = events.map((event) => ({
       ...event,
       participants: (event.participantIds || []).map(
-        (id) => usersMap.get(id) || { id, username: "Member", email: "" }
+        (id) => usersMap.get(id) || { id, username: "Member" }
       ),
       isFromDatabase: true,
     }));
@@ -98,7 +98,11 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      events: filtered.map((e) => ({ ...e, isFromDatabase: false })),
+      events: filtered.map((e) => ({
+        ...e,
+        participants: (e.participants || []).map((p) => ({ id: p.id, username: p.username })),
+        isFromDatabase: false,
+      })),
       databaseConnected: false,
     });
   }
@@ -106,17 +110,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  const isDevWithoutDb = process.env.NODE_ENV === "development" && !process.env.DATABASE_URL;
-
-  if (!isAdmin && !isDevWithoutDb) {
+  if (!session) {
     return NextResponse.json(
-      { error: "Unauthorized. Administrator access required." },
+      { error: "Unauthorized. Please sign in as an administrator to create events." },
       { status: 401 }
     );
   }
 
-  if (session && session.user?.role !== "ADMIN") {
+  if (session.user?.role !== "ADMIN") {
     return NextResponse.json(
       { error: "Forbidden. Administrator access required." },
       { status: 403 }
@@ -187,7 +188,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Resolve participants for the response
-      let participants: Array<{ id: string; username: string; email: string }> = [];
+      let participants: Array<{ id: string; username: string }> = [];
       if (cleanParticipantIds.length > 0) {
         try {
           const validUuids = cleanParticipantIds.filter((id) => UUID_REGEX.test(id));
@@ -195,15 +196,15 @@ export async function POST(request: NextRequest) {
             validUuids.length > 0
               ? await db.user.findMany({
                   where: { id: { in: validUuids } },
-                  select: { id: true, username: true, email: true },
+                  select: { id: true, username: true },
                 })
               : [];
           const usersMap = new Map(dbUsers.map((u) => [u.id, u]));
           participants = cleanParticipantIds.map(
-            (id) => usersMap.get(id) || { id, username: "Member", email: "" }
+            (id) => usersMap.get(id) || { id, username: "Member" }
           );
         } catch {
-          participants = cleanParticipantIds.map((id) => ({ id, username: "Member", email: "" }));
+          participants = cleanParticipantIds.map((id) => ({ id, username: "Member" }));
         }
       }
 
@@ -228,7 +229,6 @@ export async function POST(request: NextRequest) {
         participants: cleanParticipantIds.map((id) => ({
           id,
           username: id.startsWith("usr-") ? id.replace("usr-dev-", "User ") : "Member",
-          email: `${id}@imagesngo.org`,
         })),
         eventDate: parsedDate.toISOString(),
         location: location.trim(),

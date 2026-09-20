@@ -21,18 +21,18 @@ export async function GET(
       });
 
       if (event) {
-        let participants: Array<{ id: string; username: string; email: string }> = [];
+        let participants: Array<{ id: string; username: string }> = [];
         if (event.participantIds && event.participantIds.length > 0) {
           const validUuids = event.participantIds.filter((pid) => UUID_REGEX.test(pid));
           if (validUuids.length > 0) {
             try {
               const users = await db.user.findMany({
                 where: { id: { in: validUuids } },
-                select: { id: true, username: true, email: true },
+                select: { id: true, username: true },
               });
               const usersMap = new Map(users.map((u) => [u.id, u]));
               participants = event.participantIds.map(
-                (pid) => usersMap.get(pid) || { id: pid, username: "Member", email: "" }
+                (pid) => usersMap.get(pid) || { id: pid, username: "Member" }
               );
             } catch (err) {
               console.warn("Failed to resolve participants:", err);
@@ -41,7 +41,6 @@ export async function GET(
             participants = event.participantIds.map((pid) => ({
               id: pid,
               username: "Member",
-              email: "",
             }));
           }
         }
@@ -71,17 +70,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  const isDevWithoutDb = process.env.NODE_ENV === "development" && !process.env.DATABASE_URL;
-
-  if (!isAdmin && !isDevWithoutDb) {
+  if (!session) {
     return NextResponse.json(
-      { error: "Unauthorized. Administrator access required." },
+      { error: "Unauthorized. Please sign in as an administrator to update events." },
       { status: 401 }
     );
   }
 
-  if (session && session.user?.role !== "ADMIN") {
+  if (session.user?.role !== "ADMIN") {
     return NextResponse.json(
       { error: "Forbidden. Administrator access required." },
       { status: 403 }
@@ -131,7 +127,7 @@ export async function PUT(
         data: dataToUpdate,
       });
 
-      let participants: Array<{ id: string; username: string; email: string }> = [];
+      let participants: Array<{ id: string; username: string }> = [];
       if (updatedEvent.participantIds && updatedEvent.participantIds.length > 0) {
         try {
           const validUuids = updatedEvent.participantIds.filter((pid) => UUID_REGEX.test(pid));
@@ -139,18 +135,17 @@ export async function PUT(
             validUuids.length > 0
               ? await db.user.findMany({
                   where: { id: { in: validUuids } },
-                  select: { id: true, username: true, email: true },
+                  select: { id: true, username: true },
                 })
               : [];
           const usersMap = new Map(dbUsers.map((u) => [u.id, u]));
           participants = updatedEvent.participantIds.map(
-            (pid) => usersMap.get(pid) || { id: pid, username: "Member", email: "" }
+            (pid) => usersMap.get(pid) || { id: pid, username: "Member" }
           );
         } catch {
           participants = updatedEvent.participantIds.map((pid) => ({
             id: pid,
             username: "Member",
-            email: "",
           }));
         }
       }
@@ -192,17 +187,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  const isDevWithoutDb = process.env.NODE_ENV === "development" && !process.env.DATABASE_URL;
-
-  if (!isAdmin && !isDevWithoutDb) {
+  if (!session) {
     return NextResponse.json(
-      { error: "Unauthorized. Administrator access required." },
+      { error: "Unauthorized. Please sign in as an administrator to delete events." },
       { status: 401 }
     );
   }
 
-  if (session && session.user?.role !== "ADMIN") {
+  if (session.user?.role !== "ADMIN") {
     return NextResponse.json(
       { error: "Forbidden. Administrator access required." },
       { status: 403 }

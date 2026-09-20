@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 import {
   Calendar,
   Clock,
@@ -153,8 +151,6 @@ export default function EventsPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-zinc-900 selection:bg-sky-500 selection:text-white">
-      <Navbar />
-
       <main className="flex-1 pb-24">
         {/* Hero Section */}
         <section className="relative px-4 pt-16 pb-12 sm:px-8 text-center max-w-5xl mx-auto">
@@ -557,9 +553,7 @@ export default function EventsPage() {
                             <div className="text-xs font-semibold text-zinc-900 truncate">
                               {p.username}
                             </div>
-                            {p.email && (
-                              <div className="text-[10px] text-zinc-400 truncate">{p.email}</div>
-                            )}
+                            <div className="text-[10px] text-zinc-400 truncate">Volunteer</div>
                           </div>
                         </div>
                       ))}
@@ -575,8 +569,6 @@ export default function EventsPage() {
           </div>
         </div>
       )}
-
-      <Footer />
     </div>
   );
 }

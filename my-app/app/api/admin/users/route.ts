@@ -7,17 +7,14 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  const isDevWithoutDb = process.env.NODE_ENV === "development" && !process.env.DATABASE_URL;
-
-  if (!isAdmin && !isDevWithoutDb) {
+  if (!session) {
     return NextResponse.json(
-      { error: "Unauthorized. Administrator access required." },
+      { error: "Unauthorized. Please sign in to view users." },
       { status: 401 }
     );
   }
 
-  if (session && session.user?.role !== "ADMIN") {
+  if (session.user?.role !== "ADMIN") {
     return NextResponse.json(
       { error: "Forbidden. Administrator access required." },
       { status: 403 }

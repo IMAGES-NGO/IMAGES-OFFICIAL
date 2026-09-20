@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deleteFromCloudinary } from "@/lib/cloudinary";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 export const dynamic = "force-dynamic";
 
@@ -10,21 +12,15 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string | string[] }> }
 ) {
-  // Authentication & Authorization check:
-  // In production (or whenever a database is connected), strictly require role === "ADMIN".
-  // Allow unauthenticated local preview only during development before the database is provisioned.
   const session = await getServerSession(authOptions);
-  const isAdmin = session?.user?.role === "ADMIN";
-  const isDevWithoutDb = process.env.NODE_ENV === "development" && !process.env.DATABASE_URL;
-
-  if (!isAdmin && !isDevWithoutDb) {
+  if (!session) {
     return NextResponse.json(
-      { error: "Unauthorized. Administrator access required." },
+      { error: "Unauthorized. Please sign in to delete images." },
       { status: 401 }
     );
   }
 
-  if (session && session.user?.role !== "ADMIN") {
+  if (session.user?.role !== "ADMIN") {
     return NextResponse.json(
       { error: "Forbidden. Administrator access required." },
       { status: 403 }
@@ -49,11 +45,22 @@ export async function DELETE(
       console.warn("Database lookup skipped or failed:", dbErr);
     }
 
-    // Always delete asset from Cloudinary
-    try {
-      await deleteFromCloudinary(publicId);
-    } catch (cloudinaryError) {
-      console.warn("Cloudinary delete warning:", cloudinaryError);
+    // If it's a local file asset, delete from public/uploads
+    if (publicId.startsWith("local_")) {
+      try {
+        const fileName = publicId.replace("local_", "");
+        const filePath = path.join(process.cwd(), "public", "uploads", fileName);
+        await fs.unlink(filePath);
+      } catch (fsErr) {
+        console.warn("Could not delete local file:", fsErr);
+      }
+    } else if (!publicId.startsWith("data_")) {
+      // Cloudinary deletion
+      try {
+        await deleteFromCloudinary(publicId);
+      } catch (cloudinaryError) {
+        console.warn("Cloudinary delete warning:", cloudinaryError);
+      }
     }
 
     return NextResponse.json({ success: true, message: "Image deleted successfully." });
