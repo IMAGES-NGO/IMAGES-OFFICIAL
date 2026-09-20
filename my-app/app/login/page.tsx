@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const callbackUrl = searchParams.get("callbackUrl") || "/";
     const [formError, setFormError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginInput>({
@@ -21,12 +23,12 @@ export default function LoginPage() {
 
     const onSubmit = async (data: LoginInput) => {
         setFormError("");
-        const result = await signIn("credentials", { ...data, redirect: false, callbackUrl: "/" });
+        const result = await signIn("credentials", { ...data, redirect: false, callbackUrl });
         if (!result || result.error) {
             setFormError("Invalid credentials, account type, or unverified email.");
             return;
         }
-        router.push(result.url ?? "/");
+        router.push(result.url ?? callbackUrl);
     };
 
     return (
@@ -67,5 +69,13 @@ export default function LoginPage() {
                 <p className="mt-6 text-center text-sm text-zinc-600">Don&apos;t have an account? <Link href="/signup" className="font-medium text-black underline">Sign up</Link></p>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="flex flex-1 items-center justify-center p-12 text-sm text-zinc-500">Loading...</div>}>
+            <LoginForm />
+        </Suspense>
     );
 }

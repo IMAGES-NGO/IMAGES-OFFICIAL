@@ -22,9 +22,9 @@ Copy `.env.example` to `.env.local`, set `DATABASE_URL` to your Neon connection 
 
 The app uses NextAuth Credentials with JWT sessions. NextAuth stores the session in an HTTP-only cookie; passwords are stored only as bcrypt hashes and are never sent to the client.
 
-## Image Upload & Cloudinary Setup
+## Admin Dashboard & Events Management
 
-The project includes centralized image management at `/admin/media` using Cloudinary:
+The project includes an Admin Dashboard at `/admin/dashboard` for managing NGO events and media assets:
 
 1. Create a free account at [Cloudinary](https://cloudinary.com).
 2. Copy your **Cloud Name**, **API Key**, and **API Secret** from the Cloudinary Dashboard.
@@ -34,8 +34,8 @@ The project includes centralized image management at `/admin/media` using Cloudi
    CLOUDINARY_API_KEY=your_api_key
    CLOUDINARY_API_SECRET=your_api_secret
    ```
-4. Run `npm run prisma:push` to sync the `media_images` table with your Neon database.
-5. Navigate to `/admin/media` to upload, tag, and copy CDN URLs for NGO media assets.
+4. Run `npm run prisma:push` to sync the `events`, `users`, and `media_images` tables with your PostgreSQL/Neon database.
+5. Navigate to `/admin/dashboard` to create, edit, or delete events, upload event images to Cloudinary, and select members for event participant rosters. Public events can be viewed at `/events`.
 
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.

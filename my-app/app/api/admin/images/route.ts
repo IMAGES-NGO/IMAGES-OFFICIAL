@@ -137,6 +137,7 @@ export async function POST(request: NextRequest) {
       Boolean(process.env.CLOUDINARY_URL) ||
       Boolean(
         process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_CLOUD_NAME !== "your_cloud_name" &&
         process.env.CLOUDINARY_API_KEY &&
         process.env.CLOUDINARY_API_SECRET
       );
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Cloudinary credentials are not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your .env.local file.",
+            "Cloudinary credentials are not configured or still set to placeholder values. Please set valid CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your .env.local file.",
         },
         { status: 500 }
       );
@@ -182,6 +183,7 @@ export async function POST(request: NextRequest) {
       folder: "ngo_images",
       tags: [category.toLowerCase(), "ngo"],
       context: { category, title: encodeURIComponent(title) },
+      mimeType: file.type,
     });
 
     // Save metadata to Prisma database (with fallback for testing before DB is provisioned)
@@ -226,9 +228,13 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Upload handler error:", error);
-    const message = error instanceof Error ? error.message : "Failed to upload image";
+    const errObj = error as { message?: string; error?: { message?: string } };
+    const message =
+      errObj?.error?.message ||
+      errObj?.message ||
+      (error instanceof Error ? error.message : "Failed to upload image");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

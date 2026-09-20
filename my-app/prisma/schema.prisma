@@ -40,3 +40,22 @@ model MediaImage {
 
   @@map("media_images")
 }
+
+model Event {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String
+  description    String
+  eventType      String   @default("COMMUNITY") @map("event_type")
+  images         String[] @default([])
+  participantIds String[] @default([]) @map("participant_ids")
+  eventDate      DateTime @map("event_date")
+  location       String
+  startTime      String?  @map("start_time")
+  endTime        String?  @map("end_time")
+  status         String   @default("UPCOMING")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("events")
+}
+
