@@ -48,10 +48,10 @@ export default function Navbar() {
             About Us
           </Link>
           <Link
-            href="/highlights"
-            className={navLinkClass("/highlights")}
+            href="/calendar"
+            className={navLinkClass("/calendar")}
           >
-            Highlights
+            Calendar
           </Link>
           <Link
             href="/events"
@@ -122,11 +122,11 @@ export default function Navbar() {
               About Us
             </Link>
             <Link
-              href="/highlights"
+              href="/calendar"
               onClick={() => setMenuOpen((open) => !open)}
-              className="hover:underline"
+              className={isActive("/calendar") ? "text-sky-600 font-semibold" : "hover:underline"}
             >
-              Highlights
+              Calendar
             </Link>
             <Link
               href="/events"
