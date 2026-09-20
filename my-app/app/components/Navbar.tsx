@@ -13,6 +13,17 @@ export default function Navbar() {
   const { data: session, status } = useSession();
   const isSignedIn = status === "authenticated";
 
+  const isActive = (path: string) => {
+    if (path === "/#features") return pathname === "/";
+    return pathname === path || pathname.startsWith(`${path}/`);
+  };
+
+  const navLinkClass = (path: string) => {
+    const base = "relative transition-all duration-200 hover:text-slate-900 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2";
+    const active = "after:absolute after:bottom-[-6px] after:left-0 after:right-0 after:h-[2px] after:bg-sky-500 after:rounded-full font-medium text-zinc-900";
+    return isActive(path) ? `${base} ${active}` : base;
+  };
+
   return (
       <header className="sticky mx-8 md:w-full top-10 z-50 rounded-xl bg-linear-to-b from-slate-50/20 to-slate-50 backdrop-blur-md border border-gray-400/20 shadow-xl flex items-center justify-between px-8 py-4 md:mx-auto md:max-w-5xl md:rounded-2xl md:px-8">
         <Link
@@ -32,19 +43,19 @@ export default function Navbar() {
                 document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
               }
             }}
-            className="transition-all duration-200 hover:text-slate-900 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
+            className={navLinkClass("/#features")}
           >
             About Us
           </Link>
           <Link
             href="/highlights"
-            className="transition-all duration-200 hover:text-slate-900 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
+            className={navLinkClass("/highlights")}
           >
             Highlights
           </Link>
           <Link
             href="/events"
-            className="transition-all duration-200 hover:text-slate-900 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
+            className={navLinkClass("/events")}
           >
             Events
           </Link>
@@ -61,7 +72,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="transition-all duration-200 hover:text-slate-1000 hover:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
+                className="text-zinc-400 hover:text-zinc-600 transition-all duration-200 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2"
               >
                 Log out
               </button>
@@ -120,7 +131,7 @@ export default function Navbar() {
             <Link
               href="/events"
               onClick={() => setMenuOpen((open) => !open)}
-              className="hover:underline font-medium"
+              className={isActive("/events") ? "text-sky-600 font-semibold" : "hover:underline font-medium"}
             >
               Events
             </Link>
@@ -139,7 +150,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => signOut({ callbackUrl: "/" })}
-                  className="text-left text-red-600 font-medium"
+                  className="text-left text-zinc-400 hover:text-zinc-600 font-medium"
                 >
                   Log out
                 </button>

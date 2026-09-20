@@ -1,44 +1,140 @@
-import { HeartHandshake } from "lucide-react";
-import { Megaphone } from "lucide-react";
-import { UserStar } from "lucide-react";
-import { PartyPopper } from "lucide-react";
+"use client";
 
-export default function About() {
+import { useEffect, useRef } from "react";
+import { HeartHandshake, Megaphone, BriefcaseBusiness, Sparkles } from "lucide-react";
+
+const FEATURES = [
+  {
+    icon: HeartHandshake,
+    title: "NGO Events",
+    description: "Meaningful visits and drives that connect students with communities in need.",
+  },
+  {
+    icon: Megaphone,
+    title: "General Body Meetings",
+    description: "Vibrant sessions to plan, discuss and bond as a community.",
+  },
+  {
+    icon: BriefcaseBusiness,
+    title: "Mock Interviews",
+    description: "Practice sessions with alumni and professionals to sharpen your edge.",
+  },
+  {
+    icon: Sparkles,
+    title: "Lots of Fun!",
+    description: "Game nights, cultural fests, and memories that last a lifetime.",
+  },
+];
+
+const STATS = [
+  { value: "100+", label: "Active Members" },
+  { value: "15+", label: "Events Hosted" },
+  { value: "50+", label: "Alumni Network" },
+];
+
+export default function AboutUs() {
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        threshold: 0.15,
+        rootMargin: "0px 0px -60px 0px",
+      }
+    );
+
+    const elements = sectionRef.current?.querySelectorAll(".scroll-reveal");
+    elements?.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <>
-      <div className="flex flex-col text-center m-4 p-4 justify-center" id="features">
-        <h1 className="text-sky-500 font-secondary font-bold mt-10">ABOUT US</h1>
-        <h1 className="text-4xl font-primary-italic my-5 mt-0 mb-20">What do we do ?</h1>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 mb-10 gap-y-8 place-items-center font-secondary">
-          <div className="row-span-1 flex gap-x-5">
-            <HeartHandshake color="red"/>
-            <p>NGO Events</p>
-          </div>
-          <div className="row-span-1 flex gap-x-5">
-            <Megaphone color="blue" />
-            <p>General Body Meetings</p>
-          </div>
-          <div className="row-span-1 flex gap-x-5">
-            <UserStar color="gold"/>
-            <p>Mock Interviews</p>
-          </div>
-          <div className="row-span-1 flex gap-x-5">
-            <PartyPopper color="green"/>
-            <p>Lots of Fun!!</p>
-          </div>
-        </div>
-
-        <p className="text-justify lg:mx-20 text-slate-600 font-secondary">
-          At IMAGES, we believe in learning beyond the classroom and building
-          connections that last a lifetime. Through a blend of professional
-          development, meaningful engagement, and plenty of fun, we create
-          opportunities for students to grow, connect, and thrive. Backed by a
-          vast and active alumni network, IMAGES helps students build valuable
-          connections, gain exposure to diverse opportunities, and pave the way
-          towards internships, placements, and beyond.
+    <section
+      id="features"
+      ref={sectionRef}
+      className="py-24 lg:py-32 max-w-[var(--content-width)] mx-auto px-6"
+    >
+      {/* Heading Block */}
+      <div className="scroll-reveal text-center opacity-0 translate-y-8 [&.is-visible]:opacity-100 [&.is-visible]:translate-y-0 transition-all duration-700 ease-out">
+        <span className="bg-sky-50 border border-sky-100 text-sky-600 font-bold uppercase text-xs tracking-widest px-3 py-1 rounded-full font-secondary inline-block">
+          ABOUT US
+        </span>
+        <h2 className="font-primary-italic text-4xl sm:text-5xl lg:text-6xl text-zinc-900 mt-4">
+          What do we do?
+        </h2>
+        <p className="font-secondary text-lg text-zinc-500 mt-3 max-w-xl mx-auto">
+          Empowering students through purpose, community, and unforgettable experiences.
         </p>
       </div>
-    </>
+
+      {/* Feature cards grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-16 lg:mt-20">
+        {FEATURES.map((feature, index) => {
+          const Icon = feature.icon;
+          return (
+            <div
+              key={index}
+              className="scroll-reveal opacity-0 translate-y-8 [&.is-visible]:opacity-100 [&.is-visible]:translate-y-0 transition-all duration-700 ease-out"
+              style={{
+                transitionDelay: `${index * 80}ms`,
+                animationDelay: `${index * 80}ms`
+              }}
+            >
+              <div
+                tabIndex={0}
+                className="group relative h-full bg-white border border-zinc-100 rounded-2xl p-6 lg:p-8 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)] hover:border-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 transition-all duration-[var(--transition-fast)]"
+              >
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center mb-5 transition-colors duration-[var(--transition-fast)] group-hover:bg-sky-500">
+                  <Icon size={22} strokeWidth={1.5} className="text-sky-500 transition-colors duration-200 group-hover:text-white" />
+                </div>
+                <h3 className="font-secondary font-bold text-zinc-900 text-lg">
+                  {feature.title}
+                </h3>
+                <p className="font-secondary text-zinc-500 text-sm mt-2 leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* About paragraph */}
+      <div className="scroll-reveal opacity-0 translate-y-8 [&.is-visible]:opacity-100 [&.is-visible]:translate-y-0 transition-all duration-700 ease-out mt-16 lg:mt-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 max-w-4xl mx-auto">
+          <p className="font-primary-italic text-2xl lg:text-3xl text-zinc-900 leading-snug">
+            At IMAGES, we believe in <em className="text-sky-500 not-italic">learning beyond the classroom</em> and building connections that last a lifetime.
+          </p>
+          <p className="font-secondary text-zinc-600 leading-relaxed">
+            Through a blend of professional development, meaningful engagement, and plenty of fun, we create opportunities for students to grow, connect, and thrive. Backed by a vast and active <strong className="font-semibold text-zinc-800">alumni network</strong>, IMAGES helps students gain exposure to diverse opportunities and pave the way towards internships, placements, and beyond.
+          </p>
+        </div>
+      </div>
+
+      {/* Stats strip */}
+      <div className="scroll-reveal opacity-0 translate-y-8 [&.is-visible]:opacity-100 [&.is-visible]:translate-y-0 transition-all duration-700 ease-out mt-12 lg:mt-16">
+        <div className="flex flex-wrap justify-center gap-8 lg:gap-16 py-8 border-t border-zinc-100">
+          {STATS.map((stat, index) => (
+            <div key={index} className="text-center">
+              <div className="font-primary-italic text-3xl lg:text-4xl text-zinc-900">
+                {stat.value}
+              </div>
+              <div className="font-secondary text-sm text-zinc-500 mt-1">
+                {stat.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

@@ -1,50 +1,69 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 
+/* ─── Data Types ─── */
 interface SlideItem {
   src: string;
   alt: string;
   caption: string;
+  description?: string;
   category?: string;
   eventId?: string;
+  date?: string;
 }
 
+/* ─── Default slides (editable) ─── */
 const DEFAULT_SLIDES: SlideItem[] = [
   {
     src: "/assets/images/AsraVisit.jpg",
     alt: "Asra Orphanage Visit",
     caption: "Jyoti Sarup Kanya Asra Visit",
-    category: "VISIT",
+    description:
+      "A heartfelt day spent with the children at Jyoti Sarup Kanya Asra.",
+    category: "Visit",
   },
   {
     src: "/assets/images/Sonorous.jpeg",
     alt: "Sonorous General Body Meeting",
     caption: "Sonorous GBM 2026",
+    description:
+      "Our flagship general body meeting bringing the community together.",
     category: "GBM",
   },
   {
     src: "/assets/images/BlindInstitute.jpeg",
     alt: "Institute for the Blind",
     caption: "Visit to the Institute for the Blind",
-    category: "VISIT",
+    description:
+      "An inspiring visit to connect with and support the visually impaired.",
+    category: "Visit",
   },
   {
     src: "/assets/images/KartarAsra.jpeg",
     alt: "Old Age Home Visit",
     caption: "Kartar Asra Trust Old Age Home Visit",
-    category: "VISIT",
+    description:
+      "Spending quality time with the elderly at Kartar Asra Trust.",
+    category: "Visit",
   },
 ];
 
 export default function Highlights() {
+  const sectionRef = useRef<HTMLElement>(null);
   const [slides, setSlides] = useState<SlideItem[]>(DEFAULT_SLIDES);
   const [current, setCurrent] = useState(0);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const touchStartX = useRef(0);
 
-  // Dynamically fetch latest 5 events from the database/API
+  const hasMultiple = slides.length > 1;
+  const slide = slides[current] || DEFAULT_SLIDES[0];
+
+  /* ─── Fetch latest events from API ─── */
   useEffect(() => {
     let ignore = false;
 
@@ -53,20 +72,23 @@ export default function Highlights() {
         const res = await fetch("/api/events");
         const data = await res.json();
         if (res.ok && data.events && data.events.length > 0) {
-          // Filter for events with at least one image (the cover image)
           const eventsWithImages = data.events.filter(
             (evt: { images?: string[] }) => evt.images && evt.images.length > 0
           );
 
-          // Take the latest 5 events
           const latest5 = eventsWithImages.slice(0, 5);
 
           if (latest5.length > 0 && !ignore) {
             const mappedSlides: SlideItem[] = latest5.map(
-              (evt: { id: string; title: string; images: string[]; eventType: string }) => ({
-                src: evt.images[0], // cover image of the event
+              (evt: {
+                id: string;
+                title: string;
+                images: string[];
+                eventType: string;
+              }) => ({
+                src: evt.images[0],
                 alt: evt.title,
-                caption: evt.title, // title of that event below that
+                caption: evt.title,
                 category: evt.eventType,
                 eventId: evt.id,
               })
@@ -76,7 +98,10 @@ export default function Highlights() {
           }
         }
       } catch (err) {
-        console.warn("Could not load latest events for highlights, using defaults:", err);
+        console.warn(
+          "Could not load latest events for highlights, using defaults:",
+          err
+        );
       }
     }
 
@@ -86,147 +111,235 @@ export default function Highlights() {
     };
   }, []);
 
-  // Automatic animation carousel loop
+  /* ─── Auto-advance carousel ─── */
   useEffect(() => {
     if (slides.length <= 1) return;
     const timer = setInterval(() => {
       setCurrent((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
     }, 4500);
-
     return () => clearInterval(timer);
   }, [slides.length]);
 
-  const previousSlide = () => {
+  /* ─── Reset image states on slide change ─── */
+  useEffect(() => {
+    setImageLoaded(false);
+    setImageError(false);
+  }, [current]);
+
+  /* ─── Navigation ─── */
+  const previousSlide = useCallback(() => {
     setCurrent((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
-  };
+  }, [slides.length]);
 
-  const nextSlide = () => {
+  const nextSlide = useCallback(() => {
     setCurrent((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+  }, [slides.length]);
+
+  /* ─── Keyboard navigation ─── */
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!hasMultiple) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        previousSlide();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        nextSlide();
+      }
+    },
+    [hasMultiple, previousSlide, nextSlide]
+  );
+
+  /* ─── Touch / swipe ─── */
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
   };
 
-  const slide = slides[current] || DEFAULT_SLIDES[0];
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!hasMultiple) return;
+    const delta = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(delta) > 50) {
+      if (delta > 0) nextSlide();
+      else previousSlide();
+    }
+  };
+
+  /* ─── Scroll reveal ─── */
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
+    );
+
+    const elements = sectionRef.current?.querySelectorAll(".scroll-reveal");
+    elements?.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className="mx-4 my-8 rounded-3xl relative border border-slate-100 bg-white" id="highlights">
-      <div className="flex flex-col justify-center text-center items-center p-4">
-        <div className="my-14 sm:my-16">
-          <span className="font-secondary text-xs sm:text-sm text-sky-600 font-bold uppercase tracking-widest bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
+    <section
+      id="highlights"
+      ref={sectionRef}
+      className="relative py-24 lg:py-32 bg-zinc-50/50"
+    >
+      <div className="max-w-[var(--content-width)] mx-auto px-6">
+        {/* ─── Heading ─── */}
+        <div className="scroll-reveal text-center" style={{ animationDelay: "0ms" }}>
+          <span className="inline-block bg-sky-50 border border-sky-100 text-sky-600 font-bold uppercase text-xs tracking-widest px-3 py-1 rounded-full font-secondary">
             HIGHLIGHTS
           </span>
-          <h2 className="font-primary-italic text-3xl sm:text-5xl mt-3 text-zinc-900">
+          <h2 className="font-primary-italic text-4xl sm:text-5xl lg:text-6xl text-zinc-900 mt-4">
             Meet. Connect. Learn. Make an Impact.
           </h2>
         </div>
 
-        <div className="mx-auto w-full max-w-3xl px-2 sm:px-4">
-          {/* Carousel Box */}
-          <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/90 bg-zinc-900 shadow-2xl">
-            <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full">
-              <Image
-                src={slide.src}
-                alt={slide.alt}
-                fill
-                priority
-                className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                sizes="(max-width: 768px) 100vw, 768px"
-              />
+        {/* ─── Carousel ─── */}
+        <div
+          className="scroll-reveal mx-auto w-full max-w-5xl mt-12 lg:mt-16"
+          style={{ animationDelay: "80ms" }}
+          role="region"
+          aria-label="Event highlights carousel"
+          aria-roledescription="carousel"
+          tabIndex={0}
+          onKeyDown={handleKeyDown}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Image box */}
+          <div className="group relative overflow-hidden rounded-2xl shadow-[var(--shadow-carousel)]">
+            <div className="relative aspect-[4/3] sm:aspect-[16/9] w-full bg-gradient-to-br from-sky-100 via-sky-50 to-zinc-100">
+              {/* Gradient fallback (always behind image) */}
 
-              {/* Subtle gradient vignette */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+              {/* Image */}
+              {!imageError && (
+                <Image
+                  src={slide.src}
+                  alt={slide.alt}
+                  fill
+                  priority={current === 0}
+                  className={`object-cover transition-all duration-700 ease-out group-hover:scale-[1.03] ${
+                    imageLoaded ? "" : "img-blur-up"
+                  } ${imageLoaded ? "img-blur-up loaded" : "img-blur-up"}`}
+                  sizes="(max-width: 768px) 100vw, 1024px"
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => setImageError(true)}
+                />
+              )}
 
-              {/* Event category pill inside image box */}
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+
+              {/* Category pill */}
               {slide.category && (
-                <span className="absolute top-4 left-4 rounded-full bg-black/60 backdrop-blur-md px-3 py-1 text-[11px] font-bold text-white uppercase tracking-wider">
+                <span className="absolute top-4 left-4 sm:top-5 sm:left-5 rounded-full bg-white/20 backdrop-blur-md px-3 py-1 text-xs font-bold text-white uppercase tracking-wider border border-white/20 font-secondary">
                   {slide.category}
                 </span>
               )}
 
-              {/* Previous button */}
-              <button
-                onClick={previousSlide}
-                aria-label="Previous image"
-                className="absolute left-3 sm:left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/40 text-white shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-110 hover:bg-black/70 focus:outline-none"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
+              {/* Content overlay (bottom) */}
+              <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8">
+                <h3
+                  key={`caption-${current}`}
+                  className="font-secondary font-bold text-xl sm:text-2xl text-white animate-[fadeIn_0.4s_ease-out]"
                 >
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
-              </button>
-
-              {/* Next button */}
-              <button
-                onClick={nextSlide}
-                aria-label="Next image"
-                className="absolute right-3 sm:right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/40 text-white shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-110 hover:bg-black/70 focus:outline-none"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </button>
-
-              {/* Indicator Dots */}
-              <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
-                {slides.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrent(index)}
-                    aria-label={`Go to slide ${index + 1}`}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      current === index
-                        ? "w-7 bg-white"
-                        : "w-2 bg-white/50 hover:bg-white/80"
-                    }`}
-                  />
-                ))}
+                  {slide.caption}
+                </h3>
+                {slide.description && (
+                  <p className="font-secondary text-sm text-white/80 mt-1 max-w-lg">
+                    {slide.description}
+                  </p>
+                )}
+                {slide.date && (
+                  <p className="font-secondary text-xs text-white/60 mt-2">
+                    {slide.date}
+                  </p>
+                )}
               </div>
+
+              {/* Navigation arrows (only if multiple slides) */}
+              {hasMultiple && (
+                <>
+                  <button
+                    onClick={previousSlide}
+                    aria-label="Previous highlight"
+                    className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-white transition-all duration-200 hover:bg-white/30 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    onClick={nextSlide}
+                    aria-label="Next highlight"
+                    className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-white transition-all duration-200 hover:bg-white/30 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </>
+              )}
+
+              {/* Progress indicator dots (only if multiple slides) */}
+              {hasMultiple && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                  {slides.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrent(index)}
+                      aria-label={`Go to highlight ${index + 1}`}
+                      className={`rounded-full transition-all duration-300 ${
+                        current === index
+                          ? "w-6 h-1.5 bg-white"
+                          : "w-1.5 h-1.5 bg-white/40 hover:bg-white/60"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Title and metadata below the image box */}
-          <div className="mt-5 text-center">
-            <h3
-              key={current}
-              className="animate-[fadeIn_0.4s_ease-out] text-lg sm:text-xl font-bold text-zinc-900"
-            >
-              {slide.caption}
-            </h3>
-
-            <p className="mt-1 text-xs text-zinc-400">
-              {current + 1} of {slides.length} highlights
+          {/* Slide counter (only if multiple) */}
+          {hasMultiple && (
+            <p className="text-xs text-zinc-400 text-center mt-3 font-secondary">
+              {current + 1} of {slides.length}
             </p>
+          )}
+        </div>
 
-            <div className="mt-4">
-              <Link
-                href="/events"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700 hover:underline transition"
-              >
-                <span>Browse all initiatives & drives</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          </div>
+        {/* ─── Browse button ─── */}
+        <div
+          className="scroll-reveal mt-8 text-center"
+          style={{ animationDelay: "160ms" }}
+        >
+          <Link
+            href="/events"
+            className="group inline-flex items-center gap-2 px-6 py-3 rounded-full bg-zinc-900 text-white font-secondary font-semibold text-sm transition-all duration-200 hover:bg-sky-600 hover:scale-[1.02] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+          >
+            Browse All Initiatives & Drives
+            <ArrowRight
+              size={16}
+              className="transition-transform duration-200 group-hover:translate-x-0.5"
+            />
+          </Link>
+        </div>
 
-          <div>
-            <p className="font-secondary text-slate-400 my-16 text-sm max-w-xl mx-auto leading-relaxed">
-              From exciting GBMs and interactive student workshops to inspiring NGO visits,
-              every IMAGES experience is a blend of purpose, people, and unforgettable memories.
-            </p>
-          </div>
+        {/* ─── Closing line ─── */}
+        <div
+          className="scroll-reveal mt-12 lg:mt-16 text-center"
+          style={{ animationDelay: "240ms" }}
+        >
+          <p className="font-secondary text-zinc-500 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+            From exciting GBMs and interactive student workshops to inspiring
+            NGO visits, every IMAGES experience is a blend of purpose, people,
+            and unforgettable memories.
+          </p>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
