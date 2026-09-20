@@ -31,6 +31,10 @@ export async function GET(request: NextRequest) {
   const category = searchParams.get("category");
 
   try {
+    if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.trim()) {
+      throw new Error("DATABASE_URL is not configured.");
+    }
+
     const images = await db.mediaImage.findMany({
       where: category && category !== "ALL" ? { category } : undefined,
       orderBy: { createdAt: "desc" },
@@ -219,6 +223,10 @@ export async function POST(request: NextRequest) {
     let savedImage;
     let isFromDatabase = false;
     try {
+      if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.trim()) {
+        throw new Error("DATABASE_URL is not configured.");
+      }
+
       savedImage = await db.mediaImage.create({
         data: {
           title,

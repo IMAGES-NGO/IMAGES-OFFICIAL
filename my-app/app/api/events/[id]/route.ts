@@ -14,7 +14,7 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  if (UUID_REGEX.test(id)) {
+  if (UUID_REGEX.test(id) && process.env.DATABASE_URL?.trim()) {
     try {
       const event = await db.event.findUnique({
         where: { id },
@@ -121,60 +121,63 @@ export async function PUT(
       dataToUpdate.eventDate = parsed;
     }
 
-    try {
-      const updatedEvent = await db.event.update({
-        where: { id },
-        data: dataToUpdate,
-      });
+    if (UUID_REGEX.test(id) && process.env.DATABASE_URL?.trim()) {
+      try {
+        const updatedEvent = await db.event.update({
+          where: { id },
+          data: dataToUpdate,
+        });
 
-      let participants: Array<{ id: string; username: string }> = [];
-      if (updatedEvent.participantIds && updatedEvent.participantIds.length > 0) {
-        try {
-          const validUuids = updatedEvent.participantIds.filter((pid) => UUID_REGEX.test(pid));
-          const dbUsers =
-            validUuids.length > 0
-              ? await db.user.findMany({
-                  where: { id: { in: validUuids } },
-                  select: { id: true, username: true },
-                })
-              : [];
-          const usersMap = new Map(dbUsers.map((u) => [u.id, u]));
-          participants = updatedEvent.participantIds.map(
-            (pid) => usersMap.get(pid) || { id: pid, username: "Member" }
-          );
-        } catch {
-          participants = updatedEvent.participantIds.map((pid) => ({
-            id: pid,
-            username: "Member",
-          }));
+        let participants: Array<{ id: string; username: string }> = [];
+        if (updatedEvent.participantIds && updatedEvent.participantIds.length > 0) {
+          try {
+            const validUuids = updatedEvent.participantIds.filter((pid) => UUID_REGEX.test(pid));
+            const dbUsers =
+              validUuids.length > 0
+                ? await db.user.findMany({
+                    where: { id: { in: validUuids } },
+                    select: { id: true, username: true },
+                  })
+                : [];
+            const usersMap = new Map(dbUsers.map((u) => [u.id, u]));
+            participants = updatedEvent.participantIds.map(
+              (pid) => usersMap.get(pid) || { id: pid, username: "Member" }
+            );
+          } catch {
+            participants = updatedEvent.participantIds.map((pid) => ({
+              id: pid,
+              username: "Member",
+            }));
+          }
         }
-      }
-
-      return NextResponse.json({
-        success: true,
-        event: { ...updatedEvent, participants, isFromDatabase: true },
-      });
-    } catch (dbErr) {
-      console.warn("Database update event failed (updating in dev store):", dbErr);
-      const devIndex = devEventsStore.findIndex((e) => e.id === id);
-      if (devIndex !== -1) {
-        devEventsStore[devIndex] = {
-          ...devEventsStore[devIndex],
-          ...dataToUpdate,
-          eventDate: dataToUpdate.eventDate
-            ? (dataToUpdate.eventDate as Date).toISOString()
-            : devEventsStore[devIndex].eventDate,
-          updatedAt: new Date().toISOString(),
-        } as unknown as typeof devEventsStore[0];
 
         return NextResponse.json({
           success: true,
-          event: { ...devEventsStore[devIndex], isFromDatabase: false },
+          event: { ...updatedEvent, participants, isFromDatabase: true },
         });
+      } catch (dbErr) {
+        console.warn("Database update event failed (updating in dev store):", dbErr);
       }
-
-      return NextResponse.json({ error: "Event not found." }, { status: 404 });
     }
+
+    const devIndex = devEventsStore.findIndex((e) => e.id === id);
+    if (devIndex !== -1) {
+      devEventsStore[devIndex] = {
+        ...devEventsStore[devIndex],
+        ...dataToUpdate,
+        eventDate: dataToUpdate.eventDate
+          ? (dataToUpdate.eventDate as Date).toISOString()
+          : devEventsStore[devIndex].eventDate,
+        updatedAt: new Date().toISOString(),
+      } as unknown as typeof devEventsStore[0];
+
+      return NextResponse.json({
+        success: true,
+        event: { ...devEventsStore[devIndex], isFromDatabase: false },
+      });
+    }
+
+    return NextResponse.json({ error: "Event not found." }, { status: 404 });
   } catch (error: unknown) {
     console.error("Update event error:", error);
     const message = error instanceof Error ? error.message : "Failed to update event";
@@ -206,7 +209,7 @@ export async function DELETE(
   try {
     let deleted = false;
 
-    if (UUID_REGEX.test(id)) {
+    if (UUID_REGEX.test(id) && process.env.DATABASE_URL?.trim()) {
       try {
         await db.event.delete({
           where: { id },

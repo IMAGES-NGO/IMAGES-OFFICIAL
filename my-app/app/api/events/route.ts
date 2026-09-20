@@ -14,6 +14,10 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search")?.toLowerCase();
 
   try {
+    if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.trim()) {
+      throw new Error("DATABASE_URL is not configured.");
+    }
+
     const whereClause: {
       eventType?: string;
       status?: string;
@@ -172,6 +176,10 @@ export async function POST(request: NextRequest) {
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     try {
+      if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.trim()) {
+        throw new Error("DATABASE_URL is not configured.");
+      }
+
       const createdEvent = await db.event.create({
         data: {
           title: title.trim(),
