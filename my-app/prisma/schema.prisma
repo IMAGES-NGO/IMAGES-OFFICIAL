@@ -52,8 +52,10 @@ model Event {
   title          String
   description    String
   eventType      String   @default("COMMUNITY") @map("event_type")
-  images         String[] @default([])
-  participantIds String[] @default([]) @map("participant_ids")
+  images                  String[] @default([])
+  coverImage              String?  @map("cover_image")
+  participantIds          String[] @default([]) @map("participant_ids")
+  requestedParticipantIds String[] @default([]) @map("requested_participant_ids")
   eventDate      DateTime @map("event_date")
   location       String
   startTime      String?  @map("start_time")

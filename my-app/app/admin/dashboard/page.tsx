@@ -41,8 +41,10 @@ interface EventItem {
   title: string;
   description: string;
   eventType: string;
+  coverImage?: string | null;
   images: string[];
   participantIds: string[];
+  requestedParticipantIds?: string[];
   participants?: ParticipantUser[];
   eventDate: string;
   location: string;
@@ -83,7 +85,7 @@ export default function AdminDashboardPage() {
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [activeModalTab, setActiveModalTab] = useState<"DETAILS" | "MEDIA" | "PARTICIPANTS">("DETAILS");
+  const [activeModalTab, setActiveModalTab] = useState<"DETAILS" | "MEDIA">("DETAILS");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
@@ -98,10 +100,7 @@ export default function AdminDashboardPage() {
   const [formEndTime, setFormEndTime] = useState("");
   const [formLocation, setFormLocation] = useState("");
   const [formImages, setFormImages] = useState<string[]>([]);
-  const [formParticipantIds, setFormParticipantIds] = useState<string[]>([]);
-
-  // User search within participant modal
-  const [userSearch, setUserSearch] = useState("");
+  const [formCoverImage, setFormCoverImage] = useState<string | null>(null);
 
   // Image Upload states
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -193,7 +192,7 @@ export default function AdminDashboardPage() {
     setFormEndTime("");
     setFormLocation("");
     setFormImages([]);
-    setFormParticipantIds([]);
+    setFormCoverImage(null);
     setFormError(null);
     setFormSuccess(null);
     setImageUploadError(null);
@@ -218,7 +217,7 @@ export default function AdminDashboardPage() {
     setFormEndTime(event.endTime || "");
     setFormLocation(event.location);
     setFormImages(event.images || []);
-    setFormParticipantIds(event.participantIds || []);
+    setFormCoverImage(event.coverImage || null);
     setFormError(null);
     setFormSuccess(null);
     setImageUploadError(null);
@@ -313,32 +312,37 @@ export default function AdminDashboardPage() {
     setFormImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
-  // Toggle Participant Checkbox
-  const handleToggleParticipant = (userId: string) => {
-    setFormParticipantIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    );
-  };
-
-  // Filtered Users in Modal
-  const filteredUsers = users.filter(
-    (u) =>
-      u.username.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.email.toLowerCase().includes(userSearch.toLowerCase())
-  );
-
-  // Select / Deselect All Participants
-  const handleSelectAllParticipants = () => {
-    const visibleUserIds = filteredUsers.map((u) => u.id);
-    if (visibleUserIds.length === 0) return;
-    const allSelected = visibleUserIds.every((id) => formParticipantIds.includes(id));
-
-    if (allSelected) {
-      setFormParticipantIds((prev) => prev.filter((id) => !visibleUserIds.includes(id)));
-    } else {
-      setFormParticipantIds((prev) => Array.from(new Set([...prev, ...visibleUserIds])));
+  // Cover image upload handler
+  const handleCoverImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (!file.type.startsWith("image/")) {
+      setImageUploadError("Cover photo must be an image file.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setImageUploadError("Cover photo exceeds 10MB limit.");
+      return;
+    }
+    setIsUploadingImage(true);
+    setImageUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("title", formTitle || file.name);
+      formData.append("category", "EVENTS");
+      const res = await fetch("/api/admin/images", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to upload.");
+      if (data.image?.url) setFormCoverImage(data.image.url);
+    } catch (err: unknown) {
+      setImageUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setIsUploadingImage(false);
     }
   };
+
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   // Submit Event Form (Create or Edit)
   const handleSubmitEvent = async (e: React.FormEvent) => {
@@ -380,7 +384,7 @@ export default function AdminDashboardPage() {
         endTime: formEndTime.trim() || null,
         location: formLocation.trim(),
         images: formImages,
-        participantIds: formParticipantIds,
+        coverImage: formCoverImage,
       };
 
       const url = editingEventId ? `/api/events/${editingEventId}` : "/api/events";
@@ -812,37 +816,29 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
 
-                    {/* Participants preview & Actions Footer */}
+                    {/* Footer with Manage Event link */}
                     <div className="mt-5 pt-4 border-t border-zinc-100 flex items-center justify-between">
                       <div className="flex items-center gap-1 text-xs text-zinc-500">
                         <Users className="h-3.5 w-3.5 text-zinc-400" />
                         <span className="font-semibold text-zinc-700">
                           {evt.participantIds?.length || 0}
                         </span>
-                        <span>members</span>
+                        <span>confirmed</span>
+                        {(evt.requestedParticipantIds?.length || 0) > 0 && (
+                          <span className="text-amber-600 font-semibold ml-1">
+                            · {evt.requestedParticipantIds!.length} pending
+                          </span>
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleOpenEditModal(evt)}
-                          title="Edit event"
-                          className="p-2 rounded-xl text-zinc-600 hover:text-black hover:bg-zinc-100 transition"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteEvent(evt.id, evt.title)}
-                          disabled={deletingId === evt.id}
-                          title="Delete event"
-                          className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 transition disabled:opacity-50"
-                        >
-                          {deletingId === evt.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
-                        </button>
-                      </div>
+                      <Link
+                        href={`/admin/events/${evt.id}`}
+                        target="_blank"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-sky-600 bg-sky-50 border border-sky-100 hover:bg-sky-100 transition"
+                      >
+                        <span>Manage Event</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -864,7 +860,7 @@ export default function AdminDashboardPage() {
                     {editingEventId ? "Edit Event" : "Create New Event"}
                   </h3>
                   <p className="text-xs text-zinc-500 mt-0.5">
-                    Configure details, upload photos, set cover image, and assign participants.
+                    Configure event details and upload photos.
                   </p>
                 </div>
                 <button
@@ -902,22 +898,6 @@ export default function AdminDashboardPage() {
                   {formImages.length > 0 && (
                     <span className="rounded-full bg-sky-500 text-white text-[10px] px-1.5 py-0.2">
                       {formImages.length}
-                    </span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveModalTab("PARTICIPANTS")}
-                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
-                    activeModalTab === "PARTICIPANTS"
-                      ? "bg-white text-zinc-900 shadow-xs"
-                      : "text-zinc-600 hover:text-zinc-900"
-                  }`}
-                >
-                  <span>3. Participants</span>
-                  {formParticipantIds.length > 0 && (
-                    <span className="rounded-full bg-indigo-500 text-white text-[10px] px-1.5 py-0.2">
-                      {formParticipantIds.length}
                     </span>
                   )}
                 </button>
@@ -1075,21 +1055,7 @@ export default function AdminDashboardPage() {
 
                 {/* TAB 2: PHOTOS / MEDIA */}
                 {activeModalTab === "MEDIA" && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-xs font-bold text-zinc-800">
-                          Upload Event Images
-                        </span>
-                        <p className="text-[11px] text-zinc-500">
-                          The first photo is the <strong>Cover Image</strong> displayed on cards. Click &ldquo;Set as Cover&rdquo; on any photo to choose it.
-                        </p>
-                      </div>
-                      <span className="text-xs font-semibold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-md">
-                        {formImages.length} {formImages.length === 1 ? "image" : "images"}
-                      </span>
-                    </div>
-
+                  <div className="space-y-5 animate-fade-in">
                     {imageUploadError && (
                       <div className="flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 p-2.5 text-xs text-red-700">
                         <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
@@ -1097,237 +1063,148 @@ export default function AdminDashboardPage() {
                       </div>
                     )}
 
-                    {/* Upload Dropzone */}
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 hover:border-zinc-400 p-6 text-center cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition group"
-                    >
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
-                        className="hidden"
-                        onChange={(e) => handleImageFileChange(e.target.files)}
-                      />
-                      <div className="rounded-full bg-sky-50 border border-sky-100 p-3 text-sky-600 group-hover:scale-105 transition-transform mb-2">
-                        {isUploadingImage ? (
-                          <Loader2 className="h-6 w-6 animate-spin text-sky-600" />
-                        ) : (
-                          <UploadCloud className="h-6 w-6 text-sky-600" />
+                    {/* ── COVER PHOTO SECTION ── */}
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                            <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                            Cover Photo
+                          </span>
+                          <p className="text-[11px] text-amber-700 mt-0.5">
+                            This is the main photo displayed on event cards. Optional.
+                          </p>
+                        </div>
+                        {formCoverImage && (
+                          <button
+                            type="button"
+                            onClick={() => setFormCoverImage(null)}
+                            className="text-[10px] font-semibold text-red-600 hover:text-red-700 transition"
+                          >
+                            Remove
+                          </button>
                         )}
                       </div>
-                      <div className="text-xs sm:text-sm font-bold text-zinc-800">
-                        {isUploadingImage ? "Uploading image..." : "Click to select or drag event photos"}
-                      </div>
-                      <p className="text-[11px] text-zinc-500 mt-0.5">
-                        Supports JPG, PNG, WebP (up to 10MB each)
-                      </p>
-                    </div>
-
-                    {/* Manual URL Input */}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="url"
-                        value={manualImageUrl}
-                        onChange={(e) => setManualImageUrl(e.target.value)}
-                        placeholder="Or paste an image URL directly..."
-                        className="flex-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-xs outline-none bg-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddManualImage}
-                        className="rounded-xl border border-zinc-300 px-3.5 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 transition"
-                      >
-                        Add URL
-                      </button>
-                    </div>
-
-                    {/* Thumbnails with Cover Image Selector */}
-                    {formImages.length > 0 ? (
-                      <div>
-                        <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                          Attached Photos ({formImages.length})
+                      {formCoverImage ? (
+                        <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden border-2 border-amber-300">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={formCoverImage} alt="Cover" className="h-full w-full object-cover" />
+                          <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                            <Star className="h-3 w-3 fill-current" />
+                            <span>Cover</span>
+                          </div>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {formImages.map((imgUrl, index) => {
-                            const isCover = index === 0;
-                            return (
-                              <div
-                                key={index}
-                                className={`group relative rounded-2xl overflow-hidden border transition-all ${
-                                  isCover
-                                    ? "border-amber-400 ring-2 ring-amber-400/30 shadow-md"
-                                    : "border-zinc-200 hover:border-zinc-300 bg-zinc-50"
-                                }`}
-                              >
+                      ) : (
+                        <div
+                          onClick={() => coverInputRef.current?.click()}
+                          className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-amber-300 hover:border-amber-400 p-6 text-center cursor-pointer bg-white/60 hover:bg-white transition group"
+                        >
+                          <input
+                            ref={coverInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            className="hidden"
+                            onChange={(e) => handleCoverImageUpload(e.target.files)}
+                          />
+                          <div className="rounded-full bg-amber-100 border border-amber-200 p-2.5 text-amber-600 group-hover:scale-105 transition-transform mb-2">
+                            <UploadCloud className="h-5 w-5" />
+                          </div>
+                          <div className="text-xs font-bold text-amber-900">Click to upload cover photo</div>
+                          <p className="text-[10px] text-amber-600 mt-0.5">JPG, PNG, WebP (up to 10MB)</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── EVENT GALLERY SECTION ── */}
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <span className="text-xs font-bold text-zinc-800">
+                            Event Gallery
+                          </span>
+                          <p className="text-[11px] text-zinc-500 mt-0.5">
+                            Upload additional photos from the event. Optional.
+                          </p>
+                        </div>
+                        <span className="text-xs font-semibold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-md">
+                          {formImages.length} {formImages.length === 1 ? "photo" : "photos"}
+                        </span>
+                      </div>
+
+                      {/* Upload Dropzone */}
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 hover:border-zinc-400 p-5 text-center cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition group"
+                      >
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          multiple
+                          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                          className="hidden"
+                          onChange={(e) => handleImageFileChange(e.target.files)}
+                        />
+                        <div className="rounded-full bg-sky-50 border border-sky-100 p-2.5 text-sky-600 group-hover:scale-105 transition-transform mb-2">
+                          {isUploadingImage ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-sky-600" />
+                          ) : (
+                            <UploadCloud className="h-5 w-5 text-sky-600" />
+                          )}
+                        </div>
+                        <div className="text-xs font-bold text-zinc-800">
+                          {isUploadingImage ? "Uploading..." : "Click to add event photos"}
+                        </div>
+                        <p className="text-[10px] text-zinc-500 mt-0.5">
+                          Supports JPG, PNG, WebP (up to 10MB each)
+                        </p>
+                      </div>
+
+                      {/* Manual URL Input */}
+                      <div className="flex items-center gap-2 mt-3">
+                        <input
+                          type="url"
+                          value={manualImageUrl}
+                          onChange={(e) => setManualImageUrl(e.target.value)}
+                          placeholder="Or paste an image URL..."
+                          className="flex-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-xs outline-none bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddManualImage}
+                          className="rounded-xl border border-zinc-300 px-3.5 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 transition"
+                        >
+                          Add URL
+                        </button>
+                      </div>
+
+                      {/* Gallery Thumbnails */}
+                      {formImages.length > 0 && (
+                        <div className="mt-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {formImages.map((imgUrl, index) => (
+                              <div key={index} className="group relative rounded-xl overflow-hidden border border-zinc-200 hover:border-zinc-300">
                                 <div className="aspect-[16/10] w-full relative bg-zinc-100">
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={imgUrl}
-                                    alt={`Event image ${index + 1}`}
-                                    className="h-full w-full object-cover"
-                                  />
-
-                                  {/* Cover Badge or Set as Cover Button */}
-                                  {isCover ? (
-                                    <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                                      <Star className="h-3 w-3 fill-current" />
-                                      <span>Cover Image</span>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleSetCoverImage(index)}
-                                      title="Set as event cover image"
-                                      className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-black/75 hover:bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md transition shadow-sm"
-                                    >
-                                      <Star className="h-3 w-3" />
-                                      <span>Set as Cover</span>
-                                    </button>
-                                  )}
-
-                                  {/* Remove Button */}
+                                  <img src={imgUrl} alt={`Event image ${index + 1}`} className="h-full w-full object-cover" />
                                   <button
                                     type="button"
                                     onClick={() => handleRemoveImage(index)}
                                     title="Remove photo"
-                                    className="absolute top-2 right-2 p-1.5 rounded-full bg-black/75 text-white hover:bg-red-600 transition shadow-sm"
+                                    className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/75 text-white hover:bg-red-600 transition shadow-sm"
                                   >
-                                    <X className="h-3.5 w-3.5" />
+                                    <X className="h-3 w-3" />
                                   </button>
                                 </div>
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-center text-xs text-zinc-400 py-3 bg-zinc-50 rounded-xl border border-dashed border-zinc-200">
-                        No photos added yet. Upload at least 1 image to showcase this event.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* TAB 3: PARTICIPANTS ROSTER */}
-                {activeModalTab === "PARTICIPANTS" && (
-                  <div className="space-y-3 animate-fade-in">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div>
-                        <div className="text-xs font-bold text-zinc-800">
-                          Assign Members to Event Roster
-                        </div>
-                        <p className="text-[11px] text-zinc-500">
-                          Select which NGO members contributed or attended this event.
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 self-start sm:self-auto">
-                        <span className="rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/80 px-2.5 py-0.5 text-[11px] font-bold">
-                          {formParticipantIds.length} Selected
-                        </span>
-
-                        {/* Prominent Select All Button */}
-                        <button
-                          type="button"
-                          onClick={handleSelectAllParticipants}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-xs font-semibold text-zinc-700 hover:bg-zinc-50 hover:text-black transition shadow-xs"
-                        >
-                          <div
-                            className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border transition ${
-                              filteredUsers.length > 0 &&
-                              filteredUsers.every((u) => formParticipantIds.includes(u.id))
-                                ? "bg-indigo-600 border-indigo-600 text-white"
-                                : "border-zinc-400 bg-white"
-                            }`}
-                          >
-                            {filteredUsers.length > 0 &&
-                              filteredUsers.every((u) => formParticipantIds.includes(u.id)) && (
-                                <Check className="h-2.5 w-2.5 stroke-[3]" />
-                              )}
+                            ))}
                           </div>
-                          <span>
-                            {filteredUsers.length > 0 &&
-                            filteredUsers.every((u) => formParticipantIds.includes(u.id))
-                              ? "Deselect All"
-                              : "Select All"}
-                          </span>
-                          <span className="text-[10px] text-zinc-400 font-normal">
-                            ({filteredUsers.length})
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Search Input */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-400" />
-                      <input
-                        type="text"
-                        value={userSearch}
-                        onChange={(e) => setUserSearch(e.target.value)}
-                        placeholder="Search members by name or email..."
-                        className="w-full rounded-xl border border-zinc-200 pl-8 pr-4 py-2 text-xs outline-none bg-zinc-50/50 focus:border-black"
-                      />
-                    </div>
-
-                    {/* Checkbox User List Container */}
-                    <div className="max-h-60 overflow-y-auto space-y-1.5 rounded-2xl border border-zinc-200 p-2 bg-slate-50/50">
-                      {filteredUsers.length === 0 ? (
-                        <div className="p-4 text-center text-xs text-zinc-500">
-                          No members found matching &ldquo;{userSearch}&rdquo;.
                         </div>
-                      ) : (
-                        filteredUsers.map((user) => {
-                          const isSelected = formParticipantIds.includes(user.id);
-                          return (
-                            <div
-                              key={user.id}
-                              onClick={() => handleToggleParticipant(user.id)}
-                              className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition select-none ${
-                                isSelected
-                                  ? "bg-indigo-50/80 border border-indigo-200/90 shadow-xs"
-                                  : "bg-white hover:bg-zinc-100/70 border border-zinc-100"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <div
-                                  className={`flex h-4 w-4 items-center justify-center rounded-md border transition ${
-                                    isSelected
-                                      ? "bg-indigo-600 border-indigo-600 text-white"
-                                      : "border-zinc-300 bg-white"
-                                  }`}
-                                >
-                                  {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
-                                </div>
-
-                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-200 text-xs font-bold text-zinc-700">
-                                  {user.username.charAt(0).toUpperCase()}
-                                </div>
-
-                                <div>
-                                  <div className="text-xs font-bold text-zinc-900">
-                                    {user.username}
-                                  </div>
-                                  <div className="text-[10px] text-zinc-500">
-                                    {user.email}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {user.role === "ADMIN" && (
-                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                  ADMIN
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })
                       )}
                     </div>
                   </div>
                 )}
+
+                {/* TAB 3: PARTICIPANTS — REMOVED. Use Manage Event page instead. */}
               </div>
 
               {/* Fixed Modal Footer */}
@@ -1341,27 +1218,23 @@ export default function AdminDashboardPage() {
                 </button>
 
                 <div className="flex items-center gap-2">
-                  {activeModalTab !== "DETAILS" && (
+                  {activeModalTab === "MEDIA" && (
                     <button
                       type="button"
-                      onClick={() =>
-                        setActiveModalTab(activeModalTab === "PARTICIPANTS" ? "MEDIA" : "DETAILS")
-                      }
+                      onClick={() => setActiveModalTab("DETAILS")}
                       className="rounded-xl border border-zinc-300 px-3.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 transition"
                     >
                       &larr; Back
                     </button>
                   )}
 
-                  {activeModalTab !== "PARTICIPANTS" && (
+                  {activeModalTab === "DETAILS" && (
                     <button
                       type="button"
-                      onClick={() =>
-                        setActiveModalTab(activeModalTab === "DETAILS" ? "MEDIA" : "PARTICIPANTS")
-                      }
+                      onClick={() => setActiveModalTab("MEDIA")}
                       className="rounded-xl border border-zinc-300 px-3.5 py-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-100 transition"
                     >
-                      {activeModalTab === "DETAILS" ? "Next: Photos →" : "Next: Participants →"}
+                      Next: Photos &rarr;
                     </button>
                   )}
 

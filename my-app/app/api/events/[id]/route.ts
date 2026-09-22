@@ -22,31 +22,32 @@ export async function GET(
 
       if (event) {
         let participants: Array<{ id: string; username: string }> = [];
-        if (event.participantIds && event.participantIds.length > 0) {
-          const validUuids = event.participantIds.filter((pid) => UUID_REGEX.test(pid));
+        let requestedParticipants: Array<{ id: string; username: string }> = [];
+        const allIds = [...(event.participantIds || []), ...(event.requestedParticipantIds || [])];
+        if (allIds.length > 0) {
+          const validUuids = allIds.filter((pid) => UUID_REGEX.test(pid));
+          let usersMap = new Map();
           if (validUuids.length > 0) {
             try {
               const users = await db.user.findMany({
                 where: { id: { in: validUuids } },
                 select: { id: true, username: true },
               });
-              const usersMap = new Map(users.map((u) => [u.id, u]));
-              participants = event.participantIds.map(
-                (pid) => usersMap.get(pid) || { id: pid, username: "Member" }
-              );
+              usersMap = new Map(users.map((u) => [u.id, u]));
             } catch (err) {
               console.warn("Failed to resolve participants:", err);
             }
-          } else {
-            participants = event.participantIds.map((pid) => ({
-              id: pid,
-              username: "Member",
-            }));
           }
+          participants = (event.participantIds || []).map(
+            (pid) => usersMap.get(pid) || { id: pid, username: "Member" }
+          );
+          requestedParticipants = (event.requestedParticipantIds || []).map(
+            (pid) => usersMap.get(pid) || { id: pid, username: "Member" }
+          );
         }
 
         return NextResponse.json({
-          event: { ...event, participants, isFromDatabase: true },
+          event: { ...event, participants, requestedParticipants, isFromDatabase: true },
         });
       }
     } catch (error) {
@@ -93,7 +94,9 @@ export async function PUT(
       description,
       eventType,
       images,
+      coverImage,
       participantIds,
+      requestedParticipantIds,
       eventDate,
       location,
       startTime,
@@ -107,7 +110,9 @@ export async function PUT(
     if (description !== undefined) dataToUpdate.description = description.trim();
     if (eventType !== undefined) dataToUpdate.eventType = eventType.trim().toUpperCase();
     if (images !== undefined) dataToUpdate.images = images;
+    if (coverImage !== undefined) dataToUpdate.coverImage = coverImage;
     if (participantIds !== undefined) dataToUpdate.participantIds = participantIds;
+    if (requestedParticipantIds !== undefined) dataToUpdate.requestedParticipantIds = requestedParticipantIds;
     if (location !== undefined) dataToUpdate.location = location.trim();
     if (startTime !== undefined) dataToUpdate.startTime = startTime ? startTime.trim() : null;
     if (endTime !== undefined) dataToUpdate.endTime = endTime ? endTime.trim() : null;
@@ -129,31 +134,33 @@ export async function PUT(
         });
 
         let participants: Array<{ id: string; username: string }> = [];
-        if (updatedEvent.participantIds && updatedEvent.participantIds.length > 0) {
-          try {
-            const validUuids = updatedEvent.participantIds.filter((pid) => UUID_REGEX.test(pid));
-            const dbUsers =
-              validUuids.length > 0
-                ? await db.user.findMany({
-                    where: { id: { in: validUuids } },
-                    select: { id: true, username: true },
-                  })
-                : [];
-            const usersMap = new Map(dbUsers.map((u) => [u.id, u]));
-            participants = updatedEvent.participantIds.map(
-              (pid) => usersMap.get(pid) || { id: pid, username: "Member" }
-            );
-          } catch {
-            participants = updatedEvent.participantIds.map((pid) => ({
-              id: pid,
-              username: "Member",
-            }));
+        let requestedParticipants: Array<{ id: string; username: string }> = [];
+        const allUpdatedIds = [...(updatedEvent.participantIds || []), ...(updatedEvent.requestedParticipantIds || [])];
+        if (allUpdatedIds.length > 0) {
+          const validUuids = allUpdatedIds.filter((pid) => UUID_REGEX.test(pid));
+          let usersMap = new Map();
+          if (validUuids.length > 0) {
+            try {
+              const users = await db.user.findMany({
+                where: { id: { in: validUuids } },
+                select: { id: true, username: true },
+              });
+              usersMap = new Map(users.map((u) => [u.id, u]));
+            } catch (err) {
+              console.warn("Failed to resolve participants:", err);
+            }
           }
+          participants = (updatedEvent.participantIds || []).map(
+            (pid) => usersMap.get(pid) || { id: pid, username: "Member" }
+          );
+          requestedParticipants = (updatedEvent.requestedParticipantIds || []).map(
+            (pid) => usersMap.get(pid) || { id: pid, username: "Member" }
+          );
         }
 
         return NextResponse.json({
           success: true,
-          event: { ...updatedEvent, participants, isFromDatabase: true },
+          event: { ...updatedEvent, participants, requestedParticipants, isFromDatabase: true },
         });
       } catch (dbErr) {
         console.warn("Database update event failed (updating in dev store):", dbErr);

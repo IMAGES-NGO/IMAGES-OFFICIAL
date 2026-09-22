@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import {
   Calendar,
@@ -25,6 +26,8 @@ import {
   LayoutGrid,
   AlertCircle,
   Camera,
+  Hand,
+  CheckCircle2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -44,9 +47,12 @@ interface EventItem {
   title: string;
   description: string;
   eventType: string;
+  coverImage?: string | null;
   images: string[];
   participantIds: string[];
+  requestedParticipantIds?: string[];
   participants?: ParticipantUser[];
+  requestedParticipants?: ParticipantUser[];
   eventDate: string;
   location: string;
   startTime?: string | null;
@@ -301,6 +307,7 @@ function ComingSoonCard() {
    ───────────────────────────────────────────── */
 
 export default function EventsPage() {
+  const { data: session } = useSession();
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
@@ -312,6 +319,11 @@ export default function EventsPage() {
   // Modal state
   const [extendedEvent, setExtendedEvent] = useState<EventItem | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Participation state
+  const [participateLoading, setParticipateLoading] = useState(false);
+  const [participateMessage, setParticipateMessage] = useState<string | null>(null);
+  const [participateError, setParticipateError] = useState<string | null>(null);
 
   // Refs
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -438,6 +450,57 @@ export default function EventsPage() {
 
   const closeExtendedModal = () => {
     setExtendedEvent(null);
+    setParticipateMessage(null);
+    setParticipateError(null);
+  };
+
+  /* ─── Participate handler ─── */
+  const handleParticipate = async (eventId: string, eventTitle: string) => {
+    setParticipateLoading(true);
+    setParticipateMessage(null);
+    setParticipateError(null);
+    try {
+      const res = await fetch(`/api/events/${eventId}/participate`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to register.");
+      setParticipateMessage(data.message);
+      // Update local event state
+      setEvents(prev => prev.map(e => {
+        if (e.id !== eventId || !session?.user?.id) return e;
+        return { ...e, requestedParticipantIds: [...(e.requestedParticipantIds || []), session.user.id] };
+      }));
+      if (extendedEvent?.id === eventId && session?.user?.id) {
+        setExtendedEvent(prev => prev ? { ...prev, requestedParticipantIds: [...(prev.requestedParticipantIds || []), session.user.id] } : prev);
+      }
+    } catch (err: unknown) {
+      setParticipateError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setParticipateLoading(false);
+    }
+  };
+
+  const handleWithdraw = async (eventId: string) => {
+    setParticipateLoading(true);
+    setParticipateMessage(null);
+    setParticipateError(null);
+    try {
+      const res = await fetch(`/api/events/${eventId}/participate`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to withdraw.");
+      setParticipateMessage(data.message);
+      // Update local state
+      setEvents(prev => prev.map(e => {
+        if (e.id !== eventId || !session?.user?.id) return e;
+        return { ...e, requestedParticipantIds: (e.requestedParticipantIds || []).filter(id => id !== session.user.id) };
+      }));
+      if (extendedEvent?.id === eventId && session?.user?.id) {
+        setExtendedEvent(prev => prev ? { ...prev, requestedParticipantIds: (prev.requestedParticipantIds || []).filter(id => id !== session.user.id) } : prev);
+      }
+    } catch (err: unknown) {
+      setParticipateError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setParticipateLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -489,7 +552,7 @@ export default function EventsPage() {
           {/* Ambient glow */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[28rem] h-[28rem] bg-sky-100/40 rounded-full blur-3xl pointer-events-none -z-10" />
 
-          <div className="scroll-reveal" style={{ animationDelay: "0ms" }}>
+          <div style={{ animationDelay: "0ms" }}>
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-sky-100 bg-sky-50 text-sky-600 text-xs font-bold uppercase tracking-widest font-secondary mb-5">
               <Sparkles className="h-3.5 w-3.5" />
               Community Initiatives & Drives
@@ -867,9 +930,46 @@ export default function EventsPage() {
                       Volunteers & Participants
                     </h3>
                     <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-100 font-secondary">
-                      {extendedEvent.participantIds?.length || 0} Registered
+                      {extendedEvent.participantIds?.length || 0} Confirmed
                     </span>
                   </div>
+
+                  {/* Participate / Withdraw Button */}
+                  {session?.user && (
+                    <div className="mb-4">
+                      {participateMessage && (
+                        <div className="flex items-start gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-700 mb-3">
+                          <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-500" />
+                          <span>{participateMessage}</span>
+                        </div>
+                      )}
+                      {participateError && (
+                        <div className="flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-700 mb-3">
+                          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-500" />
+                          <span>{participateError}</span>
+                        </div>
+                      )}
+                      {(extendedEvent.requestedParticipantIds || []).includes(session.user.id) ? (
+                        <button
+                          onClick={() => handleWithdraw(extendedEvent.id)}
+                          disabled={participateLoading}
+                          className="w-full flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-600 hover:bg-zinc-100 transition disabled:opacity-50 font-secondary"
+                        >
+                          {participateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+                          <span>Registered · Click to Withdraw</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleParticipate(extendedEvent.id, extendedEvent.title)}
+                          disabled={participateLoading}
+                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-600 transition disabled:opacity-50 shadow-sm font-secondary"
+                        >
+                          {participateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hand className="h-4 w-4" />}
+                          <span>Participate in this Event</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {extendedEvent.participants && extendedEvent.participants.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -892,7 +992,7 @@ export default function EventsPage() {
                     </div>
                   ) : (
                     <div className="p-4 rounded-xl border border-dashed border-zinc-200 text-center text-xs text-zinc-400 font-secondary">
-                      No participants registered for this event yet.
+                      No participants confirmed for this event yet.
                     </div>
                   )}
                 </div>

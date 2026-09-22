@@ -45,9 +45,11 @@ export async function GET(request: NextRequest) {
       orderBy: { eventDate: "desc" },
     });
 
-    // Collect all participant IDs to resolve user details in one batch
     const allParticipantIds = Array.from(
-      new Set(events.flatMap((e) => e.participantIds || []))
+      new Set(events.flatMap((e) => [
+        ...(e.participantIds || []),
+        ...(e.requestedParticipantIds || [])
+      ]))
     );
 
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -69,6 +71,9 @@ export async function GET(request: NextRequest) {
     const enrichedEvents = events.map((event) => ({
       ...event,
       participants: (event.participantIds || []).map(
+        (id) => usersMap.get(id) || { id, username: "Member" }
+      ),
+      requestedParticipants: (event.requestedParticipantIds || []).map(
         (id) => usersMap.get(id) || { id, username: "Member" }
       ),
       isFromDatabase: true,
@@ -105,6 +110,7 @@ export async function GET(request: NextRequest) {
       events: filtered.map((e) => ({
         ...e,
         participants: (e.participants || []).map((p) => ({ id: p.id, username: p.username })),
+        requestedParticipants: (e.requestedParticipants || []).map((p: any) => ({ id: p.id, username: p.username })),
         isFromDatabase: false,
       })),
       databaseConnected: false,
@@ -135,7 +141,7 @@ export async function POST(request: NextRequest) {
       description,
       eventType = "COMMUNITY",
       images = [],
-      participantIds = [],
+      coverImage,
       eventDate,
       location,
       startTime,
@@ -164,10 +170,6 @@ export async function POST(request: NextRequest) {
       ? images.filter((img) => typeof img === "string" && img.trim().length > 0)
       : [];
 
-    const cleanParticipantIds = Array.isArray(participantIds)
-      ? participantIds.filter((id) => typeof id === "string" && id.trim().length > 0)
-      : [];
-
     const parsedDate = new Date(eventDate);
     if (isNaN(parsedDate.getTime())) {
       return NextResponse.json({ error: "Invalid event date format." }, { status: 400 });
@@ -186,7 +188,9 @@ export async function POST(request: NextRequest) {
           description: description.trim(),
           eventType: eventType.trim().toUpperCase(),
           images: cleanImages,
-          participantIds: cleanParticipantIds,
+          coverImage: coverImage || null,
+          participantIds: [],
+          requestedParticipantIds: [],
           eventDate: parsedDate,
           location: location.trim(),
           startTime: startTime?.trim() || null,
@@ -195,31 +199,13 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Resolve participants for the response
       let participants: Array<{ id: string; username: string }> = [];
-      if (cleanParticipantIds.length > 0) {
-        try {
-          const validUuids = cleanParticipantIds.filter((id) => UUID_REGEX.test(id));
-          const dbUsers =
-            validUuids.length > 0
-              ? await db.user.findMany({
-                  where: { id: { in: validUuids } },
-                  select: { id: true, username: true },
-                })
-              : [];
-          const usersMap = new Map(dbUsers.map((u) => [u.id, u]));
-          participants = cleanParticipantIds.map(
-            (id) => usersMap.get(id) || { id, username: "Member" }
-          );
-        } catch {
-          participants = cleanParticipantIds.map((id) => ({ id, username: "Member" }));
-        }
-      }
+      let requestedParticipants: Array<{ id: string; username: string }> = [];
 
       return NextResponse.json(
         {
           success: true,
-          event: { ...createdEvent, participants, isFromDatabase: true },
+          event: { ...createdEvent, participants, requestedParticipants, isFromDatabase: true },
           databaseConnected: true,
         },
         { status: 201 }
@@ -233,11 +219,11 @@ export async function POST(request: NextRequest) {
         description: description.trim(),
         eventType: eventType.trim().toUpperCase(),
         images: cleanImages,
-        participantIds: cleanParticipantIds,
-        participants: cleanParticipantIds.map((id) => ({
-          id,
-          username: id.startsWith("usr-") ? id.replace("usr-dev-", "User ") : "Member",
-        })),
+        coverImage: coverImage || null,
+        participantIds: [],
+        requestedParticipantIds: [],
+        participants: [],
+        requestedParticipants: [],
         eventDate: parsedDate.toISOString(),
         location: location.trim(),
         startTime: startTime?.trim() || null,
