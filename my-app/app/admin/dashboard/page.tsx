@@ -26,7 +26,16 @@ import {
   Sparkles,
   RefreshCw,
   Star,
+  Award,
+  List,
+  Gift
 } from "lucide-react";
+
+interface EventType {
+  id: string;
+  name: string;
+  points: number;
+}
 
 interface ParticipantUser {
   id: string;
@@ -55,15 +64,7 @@ interface EventItem {
   isFromDatabase?: boolean;
 }
 
-const EVENT_TYPES = [
-  "ALL",
-  "COMMUNITY",
-  "EDUCATION",
-  "HEALTHCARE",
-  "ENVIRONMENT",
-  "GBM",
-  "VISIT",
-];
+
 
 const EVENT_STATUSES = ["ALL", "UPCOMING", "ONGOING", "COMPLETED"];
 
@@ -74,8 +75,11 @@ export default function AdminDashboardPage() {
   // Data states
   const [events, setEvents] = useState<EventItem[]>([]);
   const [users, setUsers] = useState<ParticipantUser[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDbConnected, setIsDbConnected] = useState<boolean | null>(null);
+
+  const [activeDashboardTab, setActiveDashboardTab] = useState<"EVENTS" | "EVENT_TYPES" | "GIVE_POINTS">("EVENTS");
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState("");
@@ -111,6 +115,100 @@ export default function AdminDashboardPage() {
   // Deletion state
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Give Points State
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [pointsAmount, setPointsAmount] = useState<number | "">("");
+  const [pointsReason, setPointsReason] = useState("");
+  const [isGivingPoints, setIsGivingPoints] = useState(false);
+  const [givePointsSuccess, setGivePointsSuccess] = useState<string | null>(null);
+
+  const handleGivePoints = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedUsers.size === 0 || !pointsAmount || !pointsReason) return;
+    setIsGivingPoints(true);
+    try {
+      const res = await fetch("/api/admin/give-points", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userIds: Array.from(selectedUsers),
+          amount: Number(pointsAmount),
+          reason: pointsReason
+        })
+      });
+      if (!res.ok) throw new Error("Failed to give points");
+      setGivePointsSuccess(`Successfully gave ${pointsAmount} points to ${selectedUsers.size} user(s).`);
+      setSelectedUsers(new Set());
+      setPointsAmount("");
+      setPointsReason("");
+      setTimeout(() => setGivePointsSuccess(null), 3000);
+    } catch (err) {
+      alert("Error giving points.");
+    } finally {
+      setIsGivingPoints(false);
+    }
+  };
+
+  // Event Types State
+  const [newTypeName, setNewTypeName] = useState("");
+  const [newTypePoints, setNewTypePoints] = useState<number | "">("");
+  const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
+  const [editTypePoints, setEditTypePoints] = useState<number | "">("");
+
+  const loadEventTypes = async () => {
+    const res = await fetch("/api/admin/event-types");
+    const data = await res.json();
+    if (res.ok) {
+      setEventTypes(Array.isArray(data) ? data : data.eventTypes || []);
+    }
+  };
+
+  const handleAddEventType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTypeName || !newTypePoints) return;
+    try {
+      const res = await fetch("/api/admin/event-types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newTypeName, points: Number(newTypePoints) })
+      });
+      if (res.ok) {
+        setNewTypeName("");
+        setNewTypePoints("");
+        loadEventTypes();
+      }
+    } catch (err) {
+      alert("Error adding event type");
+    }
+  };
+
+  const handleUpdateEventType = async (id: string) => {
+    if (!editTypePoints) return;
+    try {
+      const res = await fetch(`/api/admin/event-types/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points: Number(editTypePoints) })
+      });
+      if (res.ok) {
+        setEditingTypeId(null);
+        loadEventTypes();
+      }
+    } catch (err) {
+      alert("Error updating event type");
+    }
+  };
+
+  const handleDeleteEventType = async (id: string) => {
+    if (!confirm("Are you sure?")) return;
+    try {
+      const res = await fetch(`/api/admin/event-types/${id}`, { method: "DELETE" });
+      if (res.ok) loadEventTypes();
+    } catch (err) {
+      alert("Error deleting event type");
+    }
+  };
+
   // Auth guard
   useEffect(() => {
     if (authStatus === "loading") return;
@@ -145,13 +243,15 @@ export default function AdminDashboardPage() {
 
     async function loadData() {
       try {
-        const [eventsRes, usersRes] = await Promise.all([
+        const [eventsRes, usersRes, eventTypesRes] = await Promise.all([
           fetch("/api/events"),
           fetch("/api/admin/users"),
+          fetch("/api/admin/event-types"),
         ]);
 
         const eventsData = await eventsRes.json();
         const usersData = await usersRes.json();
+        const eventTypesData = await eventTypesRes.json();
 
         if (!ignore) {
           if (eventsRes.ok && eventsData.events) {
@@ -162,6 +262,9 @@ export default function AdminDashboardPage() {
           }
           if (usersRes.ok && usersData.users) {
             setUsers(usersData.users);
+          }
+          if (eventTypesRes.ok) {
+            setEventTypes(Array.isArray(eventTypesData) ? eventTypesData : eventTypesData.eventTypes || []);
           }
         }
       } catch (err) {
@@ -185,7 +288,7 @@ export default function AdminDashboardPage() {
     setActiveModalTab("DETAILS");
     setFormTitle("");
     setFormDescription("");
-    setFormEventType("COMMUNITY");
+    setFormEventType(eventTypes.length > 0 ? eventTypes[0].name : "COMMUNITY");
     setFormStatus("UPCOMING");
     setFormDate(new Date().toISOString().split("T")[0]);
     setFormStartTime("");
@@ -205,7 +308,7 @@ export default function AdminDashboardPage() {
     setActiveModalTab("DETAILS");
     setFormTitle(event.title);
     setFormDescription(event.description);
-    setFormEventType(event.eventType || "COMMUNITY");
+    setFormEventType(event.eventType || (eventTypes.length > 0 ? eventTypes[0].name : "COMMUNITY"));
     setFormStatus(event.status || "UPCOMING");
 
     // Format date string to YYYY-MM-DD for date input
@@ -551,6 +654,36 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
+        {/* Tab Switcher */}
+        <div className="flex flex-wrap items-center gap-2 mb-8 p-1 bg-zinc-200/50 rounded-2xl w-fit">
+          <button
+            onClick={() => setActiveDashboardTab("EVENTS")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+              activeDashboardTab === "EVENTS" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
+            }`}
+          >
+            <Calendar className="h-4 w-4" /> Events
+          </button>
+          <button
+            onClick={() => setActiveDashboardTab("EVENT_TYPES")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+              activeDashboardTab === "EVENT_TYPES" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
+            }`}
+          >
+            <List className="h-4 w-4" /> Event Types
+          </button>
+          <button
+            onClick={() => setActiveDashboardTab("GIVE_POINTS")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+              activeDashboardTab === "GIVE_POINTS" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
+            }`}
+          >
+            <Gift className="h-4 w-4" /> Give Points
+          </button>
+        </div>
+
+        {activeDashboardTab === "EVENTS" && (
+          <>
         {/* Pending Approvals Section */}
         {users.filter((u) => u.status === "PENDING").length > 0 && (
           <div className="mb-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-xs">
@@ -671,7 +804,7 @@ export default function AdminDashboardPage() {
                 onChange={(e) => setSelectedType(e.target.value)}
                 className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 text-xs font-semibold outline-none text-zinc-700 hover:bg-zinc-100 transition"
               >
-                {EVENT_TYPES.map((t) => (
+                {["ALL", ...eventTypes.map(t => t.name)].map((t) => (
                   <option key={t} value={t}>
                     Type: {t}
                   </option>
@@ -846,6 +979,131 @@ export default function AdminDashboardPage() {
             </div>
           )}
         </div>
+          </>
+        )}
+
+        {activeDashboardTab === "EVENT_TYPES" && (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-zinc-900 mb-6">Manage Event Types</h2>
+              
+              <form onSubmit={handleAddEventType} className="flex flex-col sm:flex-row gap-4 mb-8 bg-zinc-50 p-4 rounded-2xl border border-zinc-100">
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">Name</label>
+                  <input type="text" required value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="e.g. BLOOD_DONATION" className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-sky-500" />
+                </div>
+                <div className="w-full sm:w-32">
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">Points</label>
+                  <input type="number" required value={newTypePoints} onChange={(e) => setNewTypePoints(e.target.value ? Number(e.target.value) : "")} placeholder="10" className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-sky-500" />
+                </div>
+                <div className="flex items-end">
+                  <button type="submit" className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-zinc-800 transition">
+                    <Plus className="h-4 w-4" /> Add Type
+                  </button>
+                </div>
+              </form>
+
+              <div className="grid gap-3">
+                {eventTypes.map(type => (
+                  <div key={type.id} className="flex items-center justify-between p-4 rounded-xl border border-zinc-200 hover:border-zinc-300 transition-colors">
+                    <div>
+                      <div className="font-bold text-zinc-900">{type.name}</div>
+                      {editingTypeId === type.id ? (
+                        <div className="flex items-center gap-2 mt-2">
+                          <input type="number" value={editTypePoints} onChange={(e) => setEditTypePoints(e.target.value ? Number(e.target.value) : "")} className="w-24 rounded-lg border border-zinc-200 px-2 py-1 text-sm outline-none focus:border-sky-500" />
+                          <button onClick={() => handleUpdateEventType(type.id)} className="text-xs bg-sky-500 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-sky-600 transition">Save</button>
+                          <button onClick={() => setEditingTypeId(null)} className="text-xs bg-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg font-semibold hover:bg-zinc-300 transition">Cancel</button>
+                        </div>
+                      ) : (
+                        <div className="text-sm font-medium text-amber-600 flex items-center gap-1 mt-1">
+                          <Award className="h-4 w-4" /> {type.points} points
+                        </div>
+                      )}
+                    </div>
+                    
+                    {!editingTypeId && (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => { setEditingTypeId(type.id); setEditTypePoints(type.points); }} className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition" title="Edit points"><Edit2 className="h-4 w-4" /></button>
+                        <button onClick={() => handleDeleteEventType(type.id)} className="p-2 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition" title="Delete type"><Trash2 className="h-4 w-4" /></button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {eventTypes.length === 0 && (
+                  <div className="text-center py-8 text-zinc-500 text-sm">No event types found. Add some above.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeDashboardTab === "GIVE_POINTS" && (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-zinc-900 mb-6">Give Points to Users</h2>
+              
+              {givePointsSuccess && (
+                <div className="mb-6 flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-700 font-medium">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  {givePointsSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handleGivePoints} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-700 mb-1">Amount to Give</label>
+                    <input type="number" required value={pointsAmount} onChange={(e) => setPointsAmount(e.target.value ? Number(e.target.value) : "")} placeholder="e.g. 50" className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm outline-none focus:border-sky-500 transition" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-700 mb-1">Reason</label>
+                    <input type="text" required value={pointsReason} onChange={(e) => setPointsReason(e.target.value)} placeholder="e.g. Excellent volunteering" className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-sm outline-none focus:border-sky-500 transition" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-xs font-bold text-zinc-700">Select Users ({selectedUsers.size} selected)</label>
+                    <button type="button" onClick={() => {
+                      if (selectedUsers.size === users.length) setSelectedUsers(new Set());
+                      else setSelectedUsers(new Set(users.map(u => u.id)));
+                    }} className="text-xs font-semibold text-sky-600 hover:text-sky-700 transition">
+                      {selectedUsers.size === users.length ? "Deselect All" : "Select All"}
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto p-1">
+                    {users.map(user => (
+                      <label key={user.id} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${selectedUsers.has(user.id) ? "border-sky-500 bg-sky-50 shadow-sm" : "border-zinc-200 hover:border-zinc-300"}`}>
+                        <input type="checkbox" className="mt-1 text-sky-500 focus:ring-sky-500 rounded" checked={selectedUsers.has(user.id)} onChange={(e) => {
+                          const newSet = new Set(selectedUsers);
+                          if (e.target.checked) newSet.add(user.id);
+                          else newSet.delete(user.id);
+                          setSelectedUsers(newSet);
+                        }} />
+                        <div>
+                          <div className="font-bold text-zinc-900 text-sm">{user.username}</div>
+                          <div className="text-xs text-zinc-500">{user.email}</div>
+                        </div>
+                      </label>
+                    ))}
+                    {users.length === 0 && (
+                      <div className="col-span-full text-center py-8 text-zinc-500 text-sm">No users found.</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-100 flex justify-end">
+                  <button type="submit" disabled={isGivingPoints || selectedUsers.size === 0 || !pointsAmount || !pointsReason} className="flex items-center gap-2 rounded-xl bg-black px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-zinc-800 transition disabled:opacity-50">
+                    {isGivingPoints ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
+                    Award Points
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* CREATE / EDIT EVENT MODAL */}
@@ -957,12 +1215,12 @@ export default function AdminDashboardPage() {
                           onChange={(e) => setFormEventType(e.target.value)}
                           className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-xs outline-none transition focus:border-black bg-white"
                         >
-                          <option value="COMMUNITY">Community Drive</option>
-                          <option value="EDUCATION">Education & Literacy</option>
-                          <option value="HEALTHCARE">Healthcare & Wellness</option>
-                          <option value="ENVIRONMENT">Environment & Plantation</option>
-                          <option value="GBM">General Body Meeting (GBM)</option>
-                          <option value="VISIT">Orphanage / Home Visit</option>
+                          {eventTypes.map(t => (
+                            <option key={t.id} value={t.name}>{t.name}</option>
+                          ))}
+                          {eventTypes.length === 0 && (
+                            <option value="COMMUNITY">Community Drive</option>
+                          )}
                         </select>
                       </div>
 

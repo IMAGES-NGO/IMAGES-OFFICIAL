@@ -19,6 +19,12 @@ interface ParticipantUser {
   role?: string;
 }
 
+interface EventType {
+  id: string;
+  name: string;
+  points: number;
+}
+
 interface EventItem {
   id: string;
   title: string;
@@ -45,6 +51,7 @@ export default function AdminManageEventPage() {
 
   const [event, setEvent] = useState<EventItem | null>(null);
   const [allUsers, setAllUsers] = useState<ParticipantUser[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Edit mode state
@@ -73,21 +80,25 @@ export default function AdminManageEventPage() {
     if (!eventId) return;
     try {
       setIsLoading(true);
-      const [eventRes, usersRes] = await Promise.all([
+      const [eventRes, usersRes, eventTypesRes] = await Promise.all([
         fetch(`/api/events/${eventId}`),
-        fetch(`/api/admin/users`)
+        fetch(`/api/admin/users`),
+        fetch(`/api/admin/event-types`)
       ]);
 
       if (eventRes.ok && usersRes.ok) {
         const eventData = await eventRes.json();
         const usersData = await usersRes.json();
+        const eventTypesData = eventTypesRes.ok ? await eventTypesRes.json() : [];
         
         // Handle potentially different response structures
         const fetchedEvent = eventData.event || eventData;
         const fetchedUsers = usersData.users || usersData || [];
+        const fetchedEventTypes = Array.isArray(eventTypesData) ? eventTypesData : eventTypesData.eventTypes || [];
         
         setEvent(fetchedEvent);
         setAllUsers(fetchedUsers);
+        setEventTypes(fetchedEventTypes);
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -390,12 +401,12 @@ export default function AdminManageEventPage() {
                   <div>
                     <label className="block text-xs font-semibold text-zinc-700 mb-1.5">Event Type</label>
                     <select name="eventType" value={editForm.eventType || ""} onChange={handleEditChange} className="w-full px-3.5 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all bg-white">
-                      <option value="COMMUNITY">Community Drive</option>
-                      <option value="EDUCATION">Education & Literacy</option>
-                      <option value="HEALTHCARE">Healthcare & Wellness</option>
-                      <option value="ENVIRONMENT">Environment & Plantation</option>
-                      <option value="GBM">General Body Meeting (GBM)</option>
-                      <option value="VISIT">Orphanage / Home Visit</option>
+                      {eventTypes.map(t => (
+                        <option key={t.id} value={t.name}>{t.name}</option>
+                      ))}
+                      {eventTypes.length === 0 && (
+                        <option value="COMMUNITY">Community Drive</option>
+                      )}
                     </select>
                   </div>
                   <div>

@@ -128,10 +128,43 @@ export async function PUT(
 
     if (UUID_REGEX.test(id) && process.env.DATABASE_URL?.trim()) {
       try {
+        const existingEvent = await db.event.findUnique({ where: { id } });
+        if (!existingEvent) {
+          return NextResponse.json({ error: "Event not found in DB." }, { status: 404 });
+        }
+
         const updatedEvent = await db.event.update({
           where: { id },
           data: dataToUpdate,
         });
+
+        if (participantIds !== undefined) {
+          const oldIds = existingEvent.participantIds || [];
+          const newIds = (participantIds as string[]).filter((pid) => !oldIds.includes(pid) && UUID_REGEX.test(pid));
+          
+          if (newIds.length > 0) {
+            const eventTypeObj = await db.eventType.findUnique({
+              where: { name: updatedEvent.eventType }
+            });
+            const pointsToAward = eventTypeObj ? eventTypeObj.points : 0;
+            
+            if (pointsToAward > 0) {
+              await db.$transaction(async (tx) => {
+                const transactionsData = newIds.map((userId) => ({
+                  userId,
+                  amount: pointsToAward,
+                  reason: `Attended Event: ${updatedEvent.title}`,
+                  eventId: id
+                }));
+                await tx.pointTransaction.createMany({ data: transactionsData });
+                await tx.user.updateMany({
+                  where: { id: { in: newIds } },
+                  data: { points: { increment: pointsToAward } }
+                });
+              });
+            }
+          }
+        }
 
         let participants: Array<{ id: string; username: string }> = [];
         let requestedParticipants: Array<{ id: string; username: string }> = [];

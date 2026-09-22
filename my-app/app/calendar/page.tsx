@@ -59,27 +59,20 @@ interface CategoryStyle {
   dot: string;        // dot color for legend
 }
 
-const CATEGORY_STYLES: CategoryStyle[] = [
-  { label: "Community",     value: "COMMUNITY",   icon: HeartHandshake, color: "text-rose-700",    bg: "bg-rose-100",    dot: "bg-rose-400" },
-  { label: "Education",     value: "EDUCATION",   icon: GraduationCap,  color: "text-sky-700",     bg: "bg-sky-100",     dot: "bg-sky-400" },
-  { label: "Healthcare",    value: "HEALTHCARE",  icon: Stethoscope,    color: "text-emerald-700", bg: "bg-emerald-100", dot: "bg-emerald-400" },
-  { label: "Environment",   value: "ENVIRONMENT", icon: TreePine,       color: "text-lime-700",    bg: "bg-lime-100",    dot: "bg-lime-500" },
-  { label: "GBM & Summits", value: "GBM",         icon: Megaphone,      color: "text-violet-700",  bg: "bg-violet-100",  dot: "bg-violet-400" },
-  { label: "Visits",        value: "VISIT",       icon: Footprints,     color: "text-amber-700",   bg: "bg-amber-100",   dot: "bg-amber-400" },
-];
-
-function getCategoryStyle(eventType: string): CategoryStyle {
-  return (
-    CATEGORY_STYLES.find((c) => c.value === eventType.toUpperCase()) || {
-      label: eventType,
-      value: eventType,
-      icon: CalendarIcon,
-      color: "text-zinc-700",
-      bg: "bg-zinc-100",
-      dot: "bg-zinc-400",
-    }
-  );
+interface EventType {
+  id: string;
+  name: string;
+  points: number;
 }
+
+const PALETTE = [
+  { icon: HeartHandshake, color: "text-rose-700",    bg: "bg-rose-100",    dot: "bg-rose-400" },
+  { icon: Megaphone,      color: "text-violet-700",  bg: "bg-violet-100",  dot: "bg-violet-400" },
+  { icon: TreePine,       color: "text-lime-700",    bg: "bg-lime-100",    dot: "bg-lime-500" },
+  { icon: GraduationCap,  color: "text-sky-700",     bg: "bg-sky-100",     dot: "bg-sky-400" },
+  { icon: Stethoscope,    color: "text-emerald-700", bg: "bg-emerald-100", dot: "bg-emerald-400" },
+  { icon: Footprints,     color: "text-amber-700",   bg: "bg-amber-100",   dot: "bg-amber-400" },
+];
 
 /* ─────────────────────────────────────────────
    Date helpers
@@ -143,33 +136,64 @@ export default function CalendarPage() {
   const [currentYear, setCurrentYear] = useState(now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  /* ─── Fetch events ─── */
+  /* ─── Fetch events & types ─── */
   useEffect(() => {
-    async function loadEvents() {
+    async function loadData() {
       try {
         setFetchError(false);
-        const res = await fetch("/api/events");
-        const data = await res.json();
-        if (res.ok && data.events) {
-          setEvents(data.events);
+        const [eventsRes, typesRes] = await Promise.all([
+          fetch("/api/events"),
+          fetch("/api/admin/event-types")
+        ]);
+        
+        if (eventsRes.ok) {
+          const eventsData = await eventsRes.json();
+          setEvents(eventsData.events || []);
         } else {
           setFetchError(true);
         }
+
+        if (typesRes.ok) {
+          const typesData = await typesRes.json();
+          setEventTypes(Array.isArray(typesData) ? typesData : typesData.eventTypes || []);
+        }
       } catch (err) {
-        console.error("Failed to load events:", err);
+        console.error("Failed to load data:", err);
         setFetchError(true);
       } finally {
         setLoading(false);
       }
     }
-    loadEvents();
+    loadData();
   }, []);
+
+  const dynamicCategories = useMemo(() => {
+    return eventTypes.map((t, idx) => ({
+      label: t.name,
+      value: t.name.toUpperCase(),
+      ...PALETTE[idx % PALETTE.length]
+    }));
+  }, [eventTypes]);
+
+  const getCategoryStyle = useCallback((eventType: string) => {
+    return (
+      dynamicCategories.find((c) => c.value === eventType.toUpperCase()) || {
+        label: eventType,
+        value: eventType,
+        icon: CalendarIcon,
+        color: "text-zinc-700",
+        bg: "bg-zinc-100",
+        dot: "bg-zinc-400",
+      }
+    );
+  }, [dynamicCategories]);
 
   /* ─── Month navigation ─── */
   const goToPrevMonth = () => {
@@ -426,7 +450,7 @@ export default function CalendarPage() {
                 <div className="rounded-2xl border border-zinc-100 bg-white p-5">
                   <h3 className="font-secondary font-bold text-zinc-800 text-sm mb-4">Categories</h3>
                   <div className="space-y-2.5">
-                    {CATEGORY_STYLES.map((cat) => {
+                    {dynamicCategories.map((cat) => {
                       const count = categoryCounts.get(cat.value) || 0;
                       return (
                         <div key={cat.value} className="flex items-center justify-between">

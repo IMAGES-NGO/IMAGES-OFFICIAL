@@ -59,8 +59,20 @@ export default function Navbar() {
           >
             Events
           </Link>
+          <Link
+            href="/leaderboard"
+            className={navLinkClass("/leaderboard")}
+          >
+            Leaderboard
+          </Link>
           {isSignedIn ? (
             <>
+              <Link
+                href="/dashboard"
+                className={navLinkClass("/dashboard")}
+              >
+                Dashboard
+              </Link>
               {session.user?.role === "ADMIN" && (
                 <Link
                   href="/admin/dashboard"
@@ -135,9 +147,23 @@ export default function Navbar() {
             >
               Events
             </Link>
+            <Link
+              href="/leaderboard"
+              onClick={() => setMenuOpen((open) => !open)}
+              className={isActive("/leaderboard") ? "text-sky-600 font-semibold" : "hover:underline font-medium"}
+            >
+              Leaderboard
+            </Link>
             <hr className="border-gray-200" />
             {isSignedIn ? (
               <div className="flex flex-col gap-4">
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMenuOpen(false)}
+                  className="hover:underline font-semibold"
+                >
+                  Member Dashboard
+                </Link>
                 {session.user?.role === "ADMIN" && (
                   <Link
                     href="/admin/dashboard"
