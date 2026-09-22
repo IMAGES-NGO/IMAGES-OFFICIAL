@@ -44,7 +44,10 @@ function LoginForm() {
                         {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
                     </div>
                     <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-black">Password</label>
+                        <div className="flex items-center justify-between">
+                            <label htmlFor="password" className="block text-sm font-medium text-black">Password</label>
+                            <Link href="/forgot-password" className="text-xs font-medium text-zinc-600 underline hover:text-black">Forgot password?</Link>
+                        </div>
                         <div className="relative mt-1">
                             <input id="password" type={showPassword ? "text" : "password"} {...register("password")} className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm text-black outline-none" />
                             <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute inset-y-0 right-0 flex items-center px-3 text-zinc-500">

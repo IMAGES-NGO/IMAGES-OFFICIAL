@@ -48,7 +48,7 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          if (!user.verifiedAt || user.role !== parsed.data.role) {
+          if (user.status !== "APPROVED" || user.role !== parsed.data.role) {
             return null;
           }
 

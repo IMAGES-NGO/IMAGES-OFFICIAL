@@ -33,6 +33,7 @@ interface ParticipantUser {
   username: string;
   email: string;
   role?: string;
+  status?: string;
 }
 
 interface EventItem {
@@ -545,6 +546,53 @@ export default function AdminDashboardPage() {
             </button>
           </div>
         </div>
+
+        {/* Pending Approvals Section */}
+        {users.filter((u) => u.status === "PENDING").length > 0 && (
+          <div className="mb-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-amber-900 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                  Pending Approvals
+                </h2>
+                <p className="text-sm text-amber-700 mt-1">
+                  The following users have requested to join. Approve them to grant access.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {users
+                .filter((u) => u.status === "PENDING")
+                .map((pendingUser) => (
+                  <div key={pendingUser.id} className="flex items-center justify-between rounded-xl bg-white p-4 border border-amber-100 shadow-sm">
+                    <div>
+                      <p className="font-semibold text-zinc-900">{pendingUser.username}</p>
+                      <p className="text-xs text-zinc-500">{pendingUser.email} &middot; {pendingUser.role}</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch("/api/admin/approve-user", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ userId: pendingUser.id }),
+                          });
+                          if (!res.ok) throw new Error("Failed to approve");
+                          setUsers(users.map(u => u.id === pendingUser.id ? { ...u, status: "APPROVED" } : u));
+                        } catch (err) {
+                          alert("Approval failed");
+                        }
+                      }}
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition"
+                    >
+                      Approve
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

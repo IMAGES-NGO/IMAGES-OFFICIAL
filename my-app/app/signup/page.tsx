@@ -12,18 +12,37 @@ export default function SignupPage() {
   const router = useRouter();
   const [formError, setFormError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [success, setSuccess] = useState(false);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SignupInput>({ resolver: zodResolver(signupSchema), mode: "onBlur" });
 
   const onSubmit = async (data: SignupInput) => {
     setFormError("");
     const response = await fetch("/api/auth/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-    const result = (await response.json()) as { error?: string };
+    const result = (await response.json()) as { error?: string; message?: string };
     if (!response.ok) {
       setFormError(result.error ?? "Unable to create your account.");
       return;
     }
-    router.push(`/verify?email=${encodeURIComponent(data.email)}`);
+    setSuccess(true);
   };
+
+  if (success) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-8 py-16 sm:px-16">
+        <div className="w-full max-w-sm text-center">
+          <h1 className="text-2xl font-semibold text-black">Request Submitted</h1>
+          <p className="mt-4 text-sm text-zinc-600">
+            Your signup request has been received and is currently pending admin approval. You will receive an email once your account is active.
+          </p>
+          <div className="mt-8">
+            <Link href="/login" className="inline-block rounded-full bg-black px-6 py-3 text-sm font-medium text-white">
+              Return to login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 items-center justify-center px-8 py-16 sm:px-16">
@@ -61,7 +80,7 @@ export default function SignupPage() {
             {errors.role && <p className="mt-1 text-xs text-red-600">{errors.role.message}</p>}
           </div>
           <button type="submit" disabled={isSubmitting} className="mt-2 rounded-full bg-black px-6 py-3 text-sm font-medium text-white disabled:opacity-50">
-            {isSubmitting ? "Creating account..." : "Create account"}
+            {isSubmitting ? "Submitting request..." : "Request Approval"}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-zinc-600">Already have an account? <Link href="/login" className="font-medium text-black underline">Log in</Link></p>

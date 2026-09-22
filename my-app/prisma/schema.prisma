@@ -12,12 +12,18 @@ enum UserRole {
   MEMBER
 }
 
+enum UserStatus {
+  PENDING
+  APPROVED
+}
+
 model User {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   username     String   @unique
   email        String   @unique
   passwordHash String   @map("password_hash")
   role         UserRole @default(MEMBER)
+  status       UserStatus @default(APPROVED)
   verifiedAt   DateTime? @map("verified_at")
   otpHash      String?  @map("otp_hash")
   otpExpiresAt DateTime? @map("otp_expires_at")

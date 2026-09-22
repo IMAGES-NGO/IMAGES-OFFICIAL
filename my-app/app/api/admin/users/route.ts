@@ -32,6 +32,7 @@ export async function GET() {
         username: true,
         email: true,
         role: true,
+        status: true,
         createdAt: true,
       },
       orderBy: {
@@ -50,6 +51,7 @@ export async function GET() {
         username: "aryan_vasudev",
         email: "aryan@imagesngo.org",
         role: "ADMIN",
+        status: "APPROVED",
         createdAt: new Date().toISOString(),
       },
       {
@@ -57,6 +59,7 @@ export async function GET() {
         username: "priya_sharma",
         email: "priya@imagesngo.org",
         role: "MEMBER",
+        status: "APPROVED",
         createdAt: new Date().toISOString(),
       },
       {
@@ -64,6 +67,7 @@ export async function GET() {
         username: "rohit_verma",
         email: "rohit@imagesngo.org",
         role: "MEMBER",
+        status: "PENDING",
         createdAt: new Date().toISOString(),
       },
       {
