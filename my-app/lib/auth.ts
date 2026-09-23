@@ -3,11 +3,12 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { loginSchema } from "@/lib/validations/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const unusablePasswordHash = "$2b$12$C6UzMDM.H6dfI/f/IKcEe.7HqG5QZgP7f3V6yQmJ4r9r7H3Qp7G3K";
 
 export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 24 * 60 * 60 }, // 24 hours
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
@@ -21,6 +22,12 @@ export const authOptions: NextAuthOptions = {
         if (!parsed.success) return null;
 
         const normalizedEmail = parsed.data.email.toLowerCase();
+
+        // Rate limiting check
+        const rateLimitResult = checkRateLimit(normalizedEmail);
+        if (!rateLimitResult.success) {
+          throw new Error("Too many login attempts. Please try again later.");
+        }
 
         // In development mode, allow dev admin login for local testing
         const isDev = process.env.NODE_ENV === "development";

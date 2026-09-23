@@ -3,6 +3,7 @@ import "./globals.css";
 import Providers from "./components/Providers";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import AutoLogout from "./components/auth/AutoLogout";
 
 export const metadata: Metadata = {
   title: "IMAGES",
@@ -18,6 +19,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen flex flex-col antialiased">
         <Providers>
+          <AutoLogout />
           <Navbar />
           <main className="flex-1 flex flex-col">{children}</main>
           <Footer />
