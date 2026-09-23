@@ -102,6 +102,7 @@ export async function PUT(
       startTime,
       endTime,
       status,
+      attendanceMarked,
     } = body;
 
     const dataToUpdate: Record<string, unknown> = {};
@@ -117,6 +118,7 @@ export async function PUT(
     if (startTime !== undefined) dataToUpdate.startTime = startTime ? startTime.trim() : null;
     if (endTime !== undefined) dataToUpdate.endTime = endTime ? endTime.trim() : null;
     if (status !== undefined) dataToUpdate.status = status.trim().toUpperCase();
+    if (attendanceMarked !== undefined) dataToUpdate.attendanceMarked = attendanceMarked;
 
     if (eventDate !== undefined) {
       const parsed = new Date(eventDate);
@@ -141,28 +143,43 @@ export async function PUT(
         if (participantIds !== undefined) {
           const oldIds = existingEvent.participantIds || [];
           const newIds = (participantIds as string[]).filter((pid) => !oldIds.includes(pid) && UUID_REGEX.test(pid));
+          const removedIds = oldIds.filter((pid) => !(participantIds as string[]).includes(pid) && UUID_REGEX.test(pid));
           
-          if (newIds.length > 0) {
-            const eventTypeObj = await db.eventType.findUnique({
-              where: { name: updatedEvent.eventType }
-            });
-            const pointsToAward = eventTypeObj ? eventTypeObj.points : 0;
+          const eventTypeObj = await db.eventType.findFirst({
+            where: { 
+              name: {
+                equals: updatedEvent.eventType,
+                mode: 'insensitive'
+              }
+            }
+          });
+          const pointsPerUser = eventTypeObj ? eventTypeObj.points : 0;
             
-            if (pointsToAward > 0) {
-              await db.$transaction(async (tx) => {
+          if (pointsPerUser > 0 && (newIds.length > 0 || removedIds.length > 0)) {
+            await db.$transaction(async (tx) => {
+              if (newIds.length > 0) {
                 const transactionsData = newIds.map((userId) => ({
                   userId,
-                  amount: pointsToAward,
+                  amount: pointsPerUser,
                   reason: `Attended Event: ${updatedEvent.title}`,
                   eventId: id
                 }));
                 await tx.pointTransaction.createMany({ data: transactionsData });
                 await tx.user.updateMany({
                   where: { id: { in: newIds } },
-                  data: { points: { increment: pointsToAward } }
+                  data: { points: { increment: pointsPerUser } }
                 });
-              });
-            }
+              }
+              if (removedIds.length > 0) {
+                await tx.pointTransaction.deleteMany({
+                  where: { eventId: id, userId: { in: removedIds } }
+                });
+                await tx.user.updateMany({
+                  where: { id: { in: removedIds } },
+                  data: { points: { decrement: pointsPerUser } }
+                });
+              }
+            });
           }
         }
 

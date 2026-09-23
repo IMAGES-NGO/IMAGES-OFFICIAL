@@ -182,11 +182,17 @@ export async function POST(request: NextRequest) {
         throw new Error("DATABASE_URL is not configured.");
       }
 
+      let finalEventType = eventType.trim().toUpperCase();
+      const eventTypeCount = await db.eventType.count();
+      if (eventTypeCount === 0) {
+        finalEventType = "NULL";
+      }
+
       const createdEvent = await db.event.create({
         data: {
           title: title.trim(),
           description: description.trim(),
-          eventType: eventType.trim().toUpperCase(),
+          eventType: finalEventType,
           images: cleanImages,
           coverImage: coverImage || null,
           participantIds: [],

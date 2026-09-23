@@ -114,9 +114,14 @@ export default function AboutUs() {
           <p className="font-primary-italic text-2xl lg:text-3xl text-zinc-900 leading-snug">
             At IMAGES, we believe in <em className="text-sky-500 not-italic">learning beyond the classroom</em> and building connections that last a lifetime.
           </p>
-          <p className="font-secondary text-zinc-600 leading-relaxed">
-            Through a blend of professional development, meaningful engagement, and plenty of fun, we create opportunities for students to grow, connect, and thrive. Backed by a vast and active <strong className="font-semibold text-zinc-800">alumni network</strong>, IMAGES helps students gain exposure to diverse opportunities and pave the way towards internships, placements, and beyond.
-          </p>
+          <div className="font-secondary text-zinc-600 leading-relaxed space-y-4">
+            <p>
+              Founded in 1991, IMAGES is a Non Profit Organization (NPO) and Non Government Organization (NGO) comprising students of PEC, University of Technology, Chandigarh. Our organization&apos;s motto is &quot;exploring in you...you!!&quot; which clearly emphasizes that the chief aim of the body is all round development of its members.
+            </p>
+            <p>
+              The organization aims at multi-faceted development of its members through innovative and enterprising projects and regular meetings.
+            </p>
+          </div>
         </div>
       </div>
 

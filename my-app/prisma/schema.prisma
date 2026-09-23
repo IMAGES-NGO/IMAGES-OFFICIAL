@@ -64,6 +64,7 @@ model Event {
   startTime      String?  @map("start_time")
   endTime        String?  @map("end_time")
   status         String   @default("UPCOMING")
+  attendanceMarked Boolean @default(false) @map("attendance_marked")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 

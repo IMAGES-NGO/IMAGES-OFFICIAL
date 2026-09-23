@@ -49,12 +49,9 @@ export default function LeaderboardPage() {
         
         <div className="text-center space-y-4 relative">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-sky-200/50 blur-[100px] rounded-full pointer-events-none"></div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-zinc-900">
-            Global <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-500 to-sky-700">Leaderboard</span>
+          <h1 className="font-primary-italic text-4xl sm:text-5xl lg:text-6xl text-zinc-900 mt-1">
+            Leaderboard
           </h1>
-          <p className="text-zinc-500 text-lg max-w-2xl mx-auto font-medium">
-            Top performers and overall community standings.
-          </p>
         </div>
 
         {/* Podium Section */}

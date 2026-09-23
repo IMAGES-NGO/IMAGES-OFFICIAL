@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import {
   Calendar,
   Clock,
@@ -108,6 +109,7 @@ export default function AdminDashboardPage() {
 
   // Image Upload states
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingCoverImage, setIsUploadingCoverImage] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [manualImageUrl, setManualImageUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -143,7 +145,7 @@ export default function AdminDashboardPage() {
       setPointsReason("");
       setTimeout(() => setGivePointsSuccess(null), 3000);
     } catch (err) {
-      alert("Error giving points.");
+      toast.error("Error giving points.");
     } finally {
       setIsGivingPoints(false);
     }
@@ -178,7 +180,7 @@ export default function AdminDashboardPage() {
         loadEventTypes();
       }
     } catch (err) {
-      alert("Error adding event type");
+      toast.error("Error adding event type");
     }
   };
 
@@ -195,7 +197,7 @@ export default function AdminDashboardPage() {
         loadEventTypes();
       }
     } catch (err) {
-      alert("Error updating event type");
+      toast.error("Error updating event type");
     }
   };
 
@@ -205,7 +207,7 @@ export default function AdminDashboardPage() {
       const res = await fetch(`/api/admin/event-types/${id}`, { method: "DELETE" });
       if (res.ok) loadEventTypes();
     } catch (err) {
-      alert("Error deleting event type");
+      toast.error("Error deleting event type");
     }
   };
 
@@ -427,7 +429,7 @@ export default function AdminDashboardPage() {
       setImageUploadError("Cover photo exceeds 10MB limit.");
       return;
     }
-    setIsUploadingImage(true);
+    setIsUploadingCoverImage(true);
     setImageUploadError(null);
     try {
       const formData = new FormData();
@@ -441,7 +443,7 @@ export default function AdminDashboardPage() {
     } catch (err: unknown) {
       setImageUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {
-      setIsUploadingImage(false);
+      setIsUploadingCoverImage(false);
     }
   };
 
@@ -529,8 +531,9 @@ export default function AdminDashboardPage() {
         throw new Error(data.error || "Failed to delete event.");
       }
       setEvents((prev) => prev.filter((e) => e.id !== id));
+      toast.success("Event deleted successfully");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to delete event.");
+      toast.error(err instanceof Error ? err.message : "Failed to delete event.");
     } finally {
       setDeletingId(null);
     }
@@ -605,45 +608,12 @@ export default function AdminDashboardPage() {
         {/* Title & Action Section */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[11px] font-semibold">
-                <Sparkles className="h-3 w-3 text-sky-600" />
-                <span>NGO Operations</span>
-              </div>
-
-              {isDbConnected === true && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>DB Synced</span>
-                </span>
-              )}
-
-              {isDbConnected === false && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200/80">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                  <span>Local Storage</span>
-                </span>
-              )}
-            </div>
-
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900">
-              Admin Events & Drives
+              Admin management console
             </h1>
-            <p className="mt-1 text-sm text-zinc-500 max-w-2xl">
-              Publish NGO initiatives, assign member participants, and upload high-resolution event galleries with cover photo controls.
-            </p>
           </div>
 
           <div className="flex items-center gap-2.5 self-start sm:self-auto">
-            <Link
-              href="/events"
-              target="_blank"
-              className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700 px-3.5 py-2.5 rounded-xl border border-sky-200/80 bg-sky-50/70 hover:bg-sky-50 transition shadow-xs"
-            >
-              <span>View Public Events</span>
-              <ExternalLink className="h-3.5 w-3.5" />
-            </Link>
-
             <button
               onClick={handleOpenCreateModal}
               className="flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-md hover:bg-zinc-800 transition active:scale-[0.99]"
@@ -717,8 +687,9 @@ export default function AdminDashboardPage() {
                           });
                           if (!res.ok) throw new Error("Failed to approve");
                           setUsers(users.map(u => u.id === pendingUser.id ? { ...u, status: "APPROVED" } : u));
+                          toast.success("User approved");
                         } catch (err) {
-                          alert("Approval failed");
+                          toast.error("Approval failed");
                         }
                       }}
                       className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition"
@@ -731,56 +702,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Total Events
-              </span>
-              <div className="p-2 rounded-xl bg-sky-50 text-sky-600">
-                <Calendar className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3 text-3xl font-extrabold text-zinc-900">{totalEvents}</div>
-          </div>
 
-          <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Upcoming
-              </span>
-              <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
-                <Sparkles className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3 text-3xl font-extrabold text-zinc-900">{upcomingEvents}</div>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Completed
-              </span>
-              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                <CheckCircle2 className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3 text-3xl font-extrabold text-zinc-900">{completedEvents}</div>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Active Members
-              </span>
-              <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
-                <Users className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-3 text-3xl font-extrabold text-zinc-900">{uniqueParticipantsCount}</div>
-          </div>
-        </div>
 
         {/* Filter & Search Bar */}
         <div className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-xs mb-8">
@@ -807,18 +729,6 @@ export default function AdminDashboardPage() {
                 {["ALL", ...eventTypes.map(t => t.name)].map((t) => (
                   <option key={t} value={t}>
                     Type: {t}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 text-xs font-semibold outline-none text-zinc-700 hover:bg-zinc-100 transition"
-              >
-                {EVENT_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    Status: {s}
                   </option>
                 ))}
               </select>
@@ -860,9 +770,9 @@ export default function AdminDashboardPage() {
                 >
                   {/* Event Banner */}
                   <div className="relative aspect-[16/10] w-full bg-zinc-100 overflow-hidden">
-                    {evt.images && evt.images.length > 0 ? (
+                    {evt.coverImage || (evt.images && evt.images.length > 0) ? (
                       <Image
-                        src={evt.images[0]}
+                        src={evt.coverImage || evt.images[0]}
                         alt={evt.title}
                         fill
                         sizes="(max-width: 768px) 100vw, 400px"
@@ -879,30 +789,11 @@ export default function AdminDashboardPage() {
                       <span className="rounded-full bg-black/70 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
                         {evt.eventType}
                       </span>
-                      <span
-                        className={`rounded-full backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                          evt.status === "UPCOMING"
-                            ? "bg-amber-500 text-white"
-                            : evt.status === "ONGOING"
-                            ? "bg-sky-500 text-white"
-                            : "bg-emerald-600 text-white"
-                        }`}
-                      >
-                        {evt.status}
-                      </span>
                     </div>
 
                     {evt.images && evt.images.length > 1 && (
                       <span className="absolute bottom-3 right-3 rounded-full bg-black/70 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-medium text-white">
                         📷 {evt.images.length} photos
-                      </span>
-                    )}
-
-                    {/* Cover badge */}
-                    {evt.images && evt.images.length > 0 && (
-                      <span className="absolute bottom-3 left-3 rounded-full bg-amber-500/95 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-white flex items-center gap-1 shadow-xs">
-                        <Star className="h-3 w-3 fill-current" />
-                        <span>Cover</span>
                       </span>
                     )}
                   </div>
@@ -951,16 +842,12 @@ export default function AdminDashboardPage() {
 
                     {/* Footer with Manage Event link */}
                     <div className="mt-5 pt-4 border-t border-zinc-100 flex items-center justify-between">
-                      <div className="flex items-center gap-1 text-xs text-zinc-500">
+                      <div className="flex items-center gap-1.5 text-xs">
                         <Users className="h-3.5 w-3.5 text-zinc-400" />
-                        <span className="font-semibold text-zinc-700">
-                          {evt.participantIds?.length || 0}
-                        </span>
-                        <span>confirmed</span>
-                        {(evt.requestedParticipantIds?.length || 0) > 0 && (
-                          <span className="text-amber-600 font-semibold ml-1">
-                            · {evt.requestedParticipantIds!.length} pending
-                          </span>
+                        {evt.attendanceMarked ? (
+                          <span className="font-semibold text-emerald-600">Attendance Marked</span>
+                        ) : (
+                          <span className="font-semibold text-amber-500">Attendance Pending</span>
                         )}
                       </div>
 
@@ -1223,21 +1110,6 @@ export default function AdminDashboardPage() {
                           )}
                         </select>
                       </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-zinc-700 mb-1">
-                          Lifecycle Status
-                        </label>
-                        <select
-                          value={formStatus}
-                          onChange={(e) => setFormStatus(e.target.value)}
-                          className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-xs outline-none transition focus:border-black bg-white"
-                        >
-                          <option value="UPCOMING">Upcoming</option>
-                          <option value="ONGOING">Ongoing</option>
-                          <option value="COMPLETED">Completed</option>
-                        </select>
-                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1354,8 +1226,8 @@ export default function AdminDashboardPage() {
                         </div>
                       ) : (
                         <div
-                          onClick={() => coverInputRef.current?.click()}
-                          className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-amber-300 hover:border-amber-400 p-6 text-center cursor-pointer bg-white/60 hover:bg-white transition group"
+                          onClick={() => !isUploadingCoverImage && coverInputRef.current?.click()}
+                          className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-amber-300 hover:border-amber-400 p-6 text-center cursor-pointer bg-white/60 hover:bg-white transition group ${isUploadingCoverImage ? "opacity-50 pointer-events-none" : ""}`}
                         >
                           <input
                             ref={coverInputRef}
@@ -1364,11 +1236,17 @@ export default function AdminDashboardPage() {
                             className="hidden"
                             onChange={(e) => handleCoverImageUpload(e.target.files)}
                           />
-                          <div className="rounded-full bg-amber-100 border border-amber-200 p-2.5 text-amber-600 group-hover:scale-105 transition-transform mb-2">
-                            <UploadCloud className="h-5 w-5" />
-                          </div>
-                          <div className="text-xs font-bold text-amber-900">Click to upload cover photo</div>
-                          <p className="text-[10px] text-amber-600 mt-0.5">JPG, PNG, WebP (up to 10MB)</p>
+                          {isUploadingCoverImage ? (
+                            <div className="rounded-full bg-amber-100 border border-amber-200 p-2.5 text-amber-600 mb-2">
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            </div>
+                          ) : (
+                            <div className="rounded-full bg-amber-100 border border-amber-200 p-2.5 text-amber-600 group-hover:scale-105 transition-transform mb-2">
+                              <UploadCloud className="h-5 w-5" />
+                            </div>
+                          )}
+                          <div className="text-xs font-bold text-amber-900">{isUploadingCoverImage ? "Uploading Cover..." : "Click to upload cover photo"}</div>
+                          {!isUploadingCoverImage && <p className="text-[10px] text-amber-600 mt-0.5">JPG, PNG, WebP (up to 10MB)</p>}
                         </div>
                       )}
                     </div>
@@ -1417,23 +1295,6 @@ export default function AdminDashboardPage() {
                         </p>
                       </div>
 
-                      {/* Manual URL Input */}
-                      <div className="flex items-center gap-2 mt-3">
-                        <input
-                          type="url"
-                          value={manualImageUrl}
-                          onChange={(e) => setManualImageUrl(e.target.value)}
-                          placeholder="Or paste an image URL..."
-                          className="flex-1 rounded-xl border border-zinc-300 px-3 py-1.5 text-xs outline-none bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAddManualImage}
-                          className="rounded-xl border border-zinc-300 px-3.5 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 transition"
-                        >
-                          Add URL
-                        </button>
-                      </div>
 
                       {/* Gallery Thumbnails */}
                       {formImages.length > 0 && (
@@ -1498,7 +1359,7 @@ export default function AdminDashboardPage() {
 
                   <button
                     type="submit"
-                    disabled={isSubmitting || isUploadingImage}
+                    disabled={isSubmitting || isUploadingImage || isUploadingCoverImage}
                     className="flex items-center gap-2 rounded-xl bg-black px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 transition disabled:opacity-50"
                   >
                     {isSubmitting ? (

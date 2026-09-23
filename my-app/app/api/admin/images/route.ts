@@ -188,9 +188,11 @@ export async function POST(request: NextRequest) {
     // 2. Resilient Fallback: If Cloudinary fails (e.g. 403 Forbidden, expired account, network block),
     // save locally or as a data URI so admin operations never crash or block
     if (!uploadResult) {
-      const ext = file.name.split(".").pop() || "png";
-      const safeBaseName = file.name.replace(/[^a-zA-Z0-9_-]/g, "_");
-      const fileName = `${Date.now()}-${safeBaseName}`;
+      const parts = file.name.split(".");
+      const ext = parts.length > 1 ? parts.pop() : "png";
+      const baseName = parts.join(".");
+      const safeBaseName = baseName.replace(/[^a-zA-Z0-9_-]/g, "_");
+      const fileName = `${Date.now()}-${safeBaseName}.${ext}`;
 
       try {
         const uploadsDir = path.join(process.cwd(), "public", "uploads");

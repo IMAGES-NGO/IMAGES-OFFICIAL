@@ -59,9 +59,6 @@ export default function AdminManageEventPage() {
   const [editForm, setEditForm] = useState<Partial<EventItem>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // Participant selection state
-  const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set());
-  const [isConfirmingAttendance, setIsConfirmingAttendance] = useState(false);
 
   // Image upload state
   const [isUploading, setIsUploading] = useState(false);
@@ -113,12 +110,6 @@ export default function AdminManageEventPage() {
     }
   }, [authStatus, session, eventId]);
 
-  // Sync selected participants when event data loads
-  useEffect(() => {
-    if (event && event.participantIds) {
-      setSelectedParticipants(new Set(event.participantIds));
-    }
-  }, [event]);
 
   if (authStatus === "loading" || isLoading || !event) {
     return (
@@ -131,11 +122,7 @@ export default function AdminManageEventPage() {
     );
   }
 
-  // Map requested participants from user list if not already populated
-  const requestedUsers = event.requestedParticipants || event.requestedParticipantIds?.map(id => {
-    const user = allUsers.find(u => u.id === id);
-    return user || { id, username: `User ${id.substring(0,6)}` };
-  }) || [];
+
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setEditForm({ ...editForm, [e.target.name]: e.target.value });
@@ -246,52 +233,14 @@ export default function AdminManageEventPage() {
     }
   };
 
-  const toggleParticipant = (id: string) => {
-    const newSet = new Set(selectedParticipants);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    setSelectedParticipants(newSet);
-  };
-
-  const selectAllParticipants = () => {
-    if (selectedParticipants.size === requestedUsers.length) {
-      setSelectedParticipants(new Set());
-    } else {
-      setSelectedParticipants(new Set(requestedUsers.map(u => u.id)));
-    }
-  };
-
-  const confirmAttendance = async () => {
-    try {
-      setIsConfirmingAttendance(true);
-      const res = await fetch(`/api/events/${eventId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ participantIds: Array.from(selectedParticipants) }),
-      });
-      if (res.ok) {
-        await fetchData();
-      }
-    } catch (error) {
-      console.error("Failed to confirm attendance:", error);
-    } finally {
-      setIsConfirmingAttendance(false);
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-zinc-50/50 p-4 md:p-8">
+    <div className="min-h-screen bg-zinc-50/50 p-4 md:p-8 pt-24 md:pt-32">
       <div className="mx-auto max-w-5xl space-y-8">
         
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <Link href="/admin/dashboard" className="text-sm text-zinc-500 hover:text-zinc-800 flex items-center gap-1 mb-2 font-medium transition-colors w-fit">
-              <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-            </Link>
             <h1 className="text-3xl font-bold text-zinc-900 flex items-center gap-2">
               Manage Event
             </h1>
@@ -538,85 +487,42 @@ export default function AdminManageEventPage() {
           </div>
         </section>
 
-        {/* Section 3: Participants */}
-        <section className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200/60">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
-              Participation Requests
-              <span className="px-2.5 py-1 bg-zinc-100 text-zinc-700 text-xs rounded-lg">
-                {requestedUsers.length} total
-              </span>
+        {/* Section 3: Attendance Management */}
+        <section className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-200/60 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-2 mb-1">
+              Event Attendance
             </h2>
+            <p className="text-sm text-zinc-500 font-medium">
+              Manage attendees and award points for this event.
+            </p>
           </div>
-
-          {!event.participantIds || event.participantIds.length === 0 ? (
-            <div className="mb-6 p-4 bg-amber-50 rounded-2xl border border-amber-200/60 flex items-center gap-3 text-amber-700">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <div className="text-sm font-semibold">
-                Attendance pending for this event
-              </div>
+          
+          <div className="flex items-center gap-4">
+            <div className={`text-sm font-bold ${event.attendanceMarked ? 'text-emerald-600' : 'text-amber-500'}`}>
+              Status: {event.attendanceMarked ? "Marked" : "Pending"}
             </div>
-          ) : (
-            <div className="mb-6 p-4 bg-emerald-50 rounded-2xl border border-emerald-200/60 flex items-center gap-3 text-emerald-700">
-              <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-              <div className="text-sm font-semibold">
-                Attendance confirmed for {event.participantIds.length} members
-              </div>
-            </div>
-          )}
-
-          {requestedUsers.length > 0 ? (
-            <div className="space-y-5">
-              <div className="flex justify-between items-center pb-4 border-b border-zinc-100">
-                <button 
-                  onClick={selectAllParticipants}
-                  className="text-sm text-zinc-600 font-semibold hover:text-zinc-900 transition-colors bg-zinc-100 hover:bg-zinc-200 px-3 py-1.5 rounded-lg"
-                >
-                  {selectedParticipants.size === requestedUsers.length ? "Deselect All" : "Select All"}
-                </button>
-                <button 
-                  onClick={confirmAttendance}
-                  disabled={isConfirmingAttendance}
-                  className="px-5 py-2 bg-emerald-500 text-white rounded-xl text-sm font-bold hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm"
-                >
-                  {isConfirmingAttendance ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  Save Confirmations
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {requestedUsers.map((user) => (
-                  <div 
-                    key={user.id} 
-                    onClick={() => toggleParticipant(user.id)}
-                    className={`p-3.5 rounded-2xl border flex items-center gap-3 cursor-pointer transition-all duration-200 select-none ${
-                      selectedParticipants.has(user.id) 
-                        ? 'border-sky-500 bg-sky-50/50 shadow-[0_0_0_1px_rgba(14,165,233,1)]' 
-                        : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
-                    }`}
-                  >
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
-                      selectedParticipants.has(user.id) ? 'border-sky-500 bg-sky-500' : 'border-zinc-300 bg-white'
-                    }`}>
-                      {selectedParticipants.has(user.id) && <Check className="w-3 h-3 text-white" />}
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-zinc-900">{user.username}</div>
-                      <div className="text-[11px] text-zinc-500 font-medium">ID: {user.id.substring(0, 8)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-12 bg-zinc-50/50 rounded-3xl border border-dashed border-zinc-200">
-              <div className="bg-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm border border-zinc-100">
-                <Users className="w-6 h-6 text-zinc-400" />
-              </div>
-              <div className="text-zinc-800 font-bold text-sm mb-1">No requests yet</div>
-              <div className="text-zinc-500 text-sm">Members haven't requested to join this event.</div>
-            </div>
-          )}
+            <a 
+              href={`/admin/events/${eventId}/attendance`}
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm ${
+                event.attendanceMarked 
+                  ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60'
+                  : 'bg-zinc-900 text-white hover:bg-zinc-800'
+              }`}
+            >
+              {event.attendanceMarked ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Edit Attendance
+                </>
+              ) : (
+                <>
+                  <Users className="w-4 h-4" />
+                  Mark Attendance
+                </>
+              )}
+            </a>
+          </div>
         </section>
 
       </div>

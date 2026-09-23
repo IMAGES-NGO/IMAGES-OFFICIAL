@@ -175,16 +175,29 @@ export default function CalendarPage() {
   }, []);
 
   const dynamicCategories = useMemo(() => {
-    return eventTypes.map((t, idx) => ({
-      label: t.name,
-      value: t.name.toUpperCase(),
-      ...PALETTE[idx % PALETTE.length]
-    }));
+    return eventTypes
+      .filter((t) => t.name.toUpperCase() !== "NULL")
+      .map((t, idx) => ({
+        label: t.name,
+        value: t.name.toUpperCase(),
+        ...PALETTE[idx % PALETTE.length]
+      }));
   }, [eventTypes]);
 
   const getCategoryStyle = useCallback((eventType: string) => {
+    const upperType = eventType.toUpperCase();
+    if (upperType === "NULL") {
+      return {
+        label: eventType,
+        value: upperType,
+        icon: CalendarIcon,
+        color: "text-zinc-500",
+        bg: "bg-zinc-200",
+        dot: "bg-zinc-400",
+      };
+    }
     return (
-      dynamicCategories.find((c) => c.value === eventType.toUpperCase()) || {
+      dynamicCategories.find((c) => c.value === upperType) || {
         label: eventType,
         value: eventType,
         icon: CalendarIcon,
@@ -309,16 +322,9 @@ export default function CalendarPage() {
         {/* ═══ Hero ═══ */}
         <section className="relative px-6 pt-20 pb-10 text-center max-w-[var(--content-width)] mx-auto">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[28rem] h-[28rem] bg-sky-100/30 rounded-full blur-3xl pointer-events-none -z-10" />
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-sky-100 bg-sky-50 text-sky-600 text-xs font-bold uppercase tracking-widest font-secondary mb-5">
-            <CalendarIcon className="h-3.5 w-3.5" />
-            Event Calendar
-          </span>
           <h1 className="font-primary-italic text-4xl sm:text-5xl lg:text-6xl text-zinc-900 mt-1">
             Club Calendar
           </h1>
-          <p className="font-secondary text-zinc-500 text-sm sm:text-base max-w-[55ch] mx-auto mt-3 leading-relaxed">
-            Browse all upcoming and past events at a glance. Click any date to see full details.
-          </p>
         </section>
 
         {/* ═══ Calendar + Sidebar ═══ */}

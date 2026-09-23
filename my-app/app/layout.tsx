@@ -4,6 +4,7 @@ import Providers from "./components/Providers";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import AutoLogout from "./components/auth/AutoLogout";
+import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: "IMAGES",
@@ -19,6 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen flex flex-col antialiased">
         <Providers>
+          <Toaster position="top-center" />
           <AutoLogout />
           <Navbar />
           <main className="flex-1 flex flex-col">{children}</main>
