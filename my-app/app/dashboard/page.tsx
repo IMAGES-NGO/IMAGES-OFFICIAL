@@ -1,4 +1,4 @@
-"use client";
+  "use client";
 
 import { jsPDF } from "jspdf";
 import { Award, Download, FileText } from "lucide-react";
@@ -16,6 +16,40 @@ interface PointTransaction {
 interface UserPointsData {
   points: number;
   history: PointTransaction[];
+}
+
+async function loadLogoDataUrl() {
+  const response = await fetch("/assets/images/logo.jpg");
+  if (!response.ok) {
+    throw new Error(`Logo request failed with status ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const image = await createImageBitmap(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Logo could not be prepared for the certificate");
+  }
+
+  context.drawImage(image, 0, 0);
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  const certificateBackground = [248, 250, 252];
+  for (let index = 0; index < imageData.data.length; index += 4) {
+    const darkness = 1 - Math.min(
+      imageData.data[index],
+      imageData.data[index + 1],
+      imageData.data[index + 2],
+    ) / 255;
+    imageData.data[index] = Math.round(certificateBackground[0] * (1 - darkness));
+    imageData.data[index + 1] = Math.round(certificateBackground[1] * (1 - darkness));
+    imageData.data[index + 2] = Math.round(certificateBackground[2] * (1 - darkness));
+    imageData.data[index + 3] = 255;
+  }
+  context.putImageData(imageData, 0, 0);
+  return canvas.toDataURL("image/png");
 }
 
 export default function DashboardPage() {
@@ -127,43 +161,46 @@ export default function DashboardPage() {
     pdf.save(`${safeFilename}-contribution-record.pdf`);
   };
 
-  const downloadCertificate = () => {
+  const downloadCertificate = async () => {
     if (!data) return;
 
-    const pdf = new jsPDF({ orientation: "landscape" });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    pdf.setFillColor(248, 250, 252);
-    pdf.rect(0, 0, pageWidth, pageHeight, "F");
-    pdf.setDrawColor(14, 165, 233);
-    pdf.setLineWidth(1.5);
-    pdf.rect(12, 12, pageWidth - 24, pageHeight - 24);
-    pdf.setDrawColor(186, 230, 253);
-    pdf.setLineWidth(0.5);
-    pdf.rect(17, 17, pageWidth - 34, pageHeight - 34);
-    pdf.setTextColor(14, 116, 144);
-    pdf.setFontSize(28);
-    pdf.text("IMAGES", pageWidth / 2, 42, { align: "center" });
-    pdf.setTextColor(24, 24, 27);
-    pdf.setFontSize(25);
-    pdf.text("Certificate of Contribution", pageWidth / 2, 67, { align: "center" });
-    pdf.setTextColor(82, 82, 91);
-    pdf.setFontSize(13);
-    pdf.text("This certificate is proudly presented to", pageWidth / 2, 88, { align: "center" });
-    pdf.setTextColor(14, 116, 144);
-    pdf.setFontSize(30);
-    pdf.text(memberName, pageWidth / 2, 112, { align: "center" });
-    pdf.setTextColor(82, 82, 91);
-    pdf.setFontSize(12);
-    pdf.text("in recognition of their valuable contributions to the IMAGES community.", pageWidth / 2, 132, { align: "center" });
-    pdf.setTextColor(24, 24, 27);
-    pdf.setFontSize(14);
-    pdf.text(`${data.points.toLocaleString()} points earned`, pageWidth / 2, 153, { align: "center" });
-    pdf.setTextColor(113, 113, 122);
-    pdf.setFontSize(10);
-    pdf.text(`Issued on ${new Date().toLocaleDateString()}`, pageWidth / 2, 178, { align: "center" });
-    pdf.text("IMAGES Team", pageWidth / 2, 194, { align: "center" });
-    pdf.save(`${safeFilename}-contribution-certificate.pdf`);
+    try {
+      const logoDataUrl = await loadLogoDataUrl();
+      const pdf = new jsPDF({ orientation: "landscape" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(0, 0, pageWidth, pageHeight, "F");
+      pdf.setDrawColor(14, 165, 233);
+      pdf.setLineWidth(1.5);
+      pdf.rect(12, 12, pageWidth - 24, pageHeight - 24);
+      pdf.setDrawColor(186, 230, 253);
+      pdf.setLineWidth(0.5);
+      pdf.rect(17, 17, pageWidth - 34, pageHeight - 34);
+      pdf.addImage(logoDataUrl, "PNG", pageWidth / 2 - 16, 21, 32, 32);
+      pdf.setTextColor(24, 24, 27);
+      pdf.setFontSize(25);
+      pdf.text("Certificate of Contribution", pageWidth / 2, 65, { align: "center" });
+      pdf.setTextColor(82, 82, 91);
+      pdf.setFontSize(13);
+      pdf.text("This certificate is proudly presented to", pageWidth / 2, 86, { align: "center" });
+      pdf.setTextColor(14, 116, 144);
+      pdf.setFontSize(30);
+      pdf.text(memberName, pageWidth / 2, 110, { align: "center" });
+      pdf.setTextColor(82, 82, 91);
+      pdf.setFontSize(12);
+      pdf.text("in recognition of their valuable contributions to the IMAGES community.", pageWidth / 2, 130, { align: "center" });
+      pdf.setTextColor(24, 24, 27);
+      pdf.setFontSize(14);
+      pdf.text(`${data.points.toLocaleString()} points earned`, pageWidth / 2, 151, { align: "center" });
+      pdf.setTextColor(113, 113, 122);
+      pdf.setFontSize(10);
+      pdf.text(`Issued on ${new Date().toLocaleDateString()}`, pageWidth / 2, 176, { align: "center" });
+      pdf.text("IMAGES Team", pageWidth / 2, 192, { align: "center" });
+      pdf.save(`${safeFilename}-contribution-certificate.pdf`);
+    } catch {
+      setError("We could not add the IMAGES logo to your certificate. Please try again.");
+    }
   };
 
   return (
