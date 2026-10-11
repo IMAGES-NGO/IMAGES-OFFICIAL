@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { loginSchema } from "@/lib/validations/auth";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 
 const unusablePasswordHash = "$2b$12$C6UzMDM.H6dfI/f/IKcEe.7HqG5QZgP7f3V6yQmJ4r9r7H3Qp7G3K";
 
@@ -24,23 +24,9 @@ export const authOptions: NextAuthOptions = {
         const normalizedEmail = parsed.data.email.toLowerCase();
 
         // Rate limiting check
-        const rateLimitResult = checkRateLimit(normalizedEmail);
+        const rateLimitResult = checkRateLimit(`login:${normalizedEmail}`, 5, 15 * 60 * 1000);
         if (!rateLimitResult.success) {
           throw new Error("Too many login attempts. Please try again later.");
-        }
-
-        // In development mode, allow dev admin login for local testing
-        const isDev = process.env.NODE_ENV === "development";
-        if (isDev && normalizedEmail === "admin@imagesngo.org" && parsed.data.role === "ADMIN") {
-          const devPassword = process.env.DEV_ADMIN_PASSWORD || "AdminImages2026!";
-          if (parsed.data.password === devPassword) {
-            return {
-              id: "usr-dev-admin",
-              name: "Admin Developer",
-              email: "admin@imagesngo.org",
-              role: "ADMIN" as const,
-            };
-          }
         }
 
         try {
@@ -58,6 +44,9 @@ export const authOptions: NextAuthOptions = {
           if (user.status !== "APPROVED" || user.role !== parsed.data.role) {
             return null;
           }
+
+          // Reset rate limiting counter upon successful authentication
+          resetRateLimit(`login:${normalizedEmail}`);
 
           return { id: user.id, name: user.username, email: user.email, role: user.role };
         } catch (dbError) {

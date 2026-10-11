@@ -3,9 +3,20 @@ import { createHash, randomInt } from "crypto";
 import { db } from "@/lib/db";
 import { forgotPasswordSchema } from "@/lib/validations/auth";
 import { sendPasswordResetOtp } from "@/lib/email";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    // 1. IP-level rate limiting to prevent Brevo quota exhaustion
+    const ip = getClientIp(request);
+    const ipLimit = checkRateLimit(`forgot-ip:${ip}`, 5, 15 * 60 * 1000);
+    if (!ipLimit.success) {
+      return NextResponse.json(
+        { error: "Too many password reset requests from this connection. Please try again in 15 minutes." },
+        { status: 429 }
+      );
+    }
+
     const body: unknown = await request.json();
     const parsed = forgotPasswordSchema.safeParse(body);
     
@@ -15,11 +26,20 @@ export async function POST(request: Request) {
 
     const email = parsed.data.email.toLowerCase();
 
+    // 2. Email-level rate limiting (max 3 per 15 minutes per email)
+    const emailLimit = checkRateLimit(`forgot-email:${email}`, 3, 15 * 60 * 1000);
+    if (!emailLimit.success) {
+      return NextResponse.json(
+        { error: "Too many reset requests for this email. Please check your inbox or wait 15 minutes." },
+        { status: 429 }
+      );
+    }
+
     const user = await db.user.findUnique({
       where: { email },
     });
 
-    // If the user does not exist, we still return a success response
+    // If the user does not exist, we still return a generic success response
     // to prevent email enumeration attacks.
     if (!user) {
       return NextResponse.json(

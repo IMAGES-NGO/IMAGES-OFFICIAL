@@ -2,9 +2,19 @@ import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { db } from "@/lib/db";
 import { verifyOtpSchema } from "@/lib/validations/auth";
+import { checkRateLimit, resetRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const ipLimit = checkRateLimit(`verify-otp-ip:${ip}`, 10, 15 * 60 * 1000);
+    if (!ipLimit.success) {
+      return NextResponse.json(
+        { error: "Too many attempts from this connection. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body: unknown = await request.json();
     const parsed = verifyOtpSchema.safeParse(body);
     if (!parsed.success) {
@@ -13,6 +23,15 @@ export async function POST(request: Request) {
 
     const email = parsed.data.email.toLowerCase();
     const otp = parsed.data.otp;
+
+    // Rate limit verification attempts (max 5 tries per 15 minutes)
+    const emailLimit = checkRateLimit(`verify-otp-email:${email}`, 5, 15 * 60 * 1000);
+    if (!emailLimit.success) {
+      return NextResponse.json(
+        { error: "Too many incorrect verification attempts. Please wait 15 minutes or request a new code." },
+        { status: 429 }
+      );
+    }
 
     const user = await db.user.findUnique({
       where: { email },
@@ -46,6 +65,9 @@ export async function POST(request: Request) {
     if (user.otpHash !== calculatedHash) {
       return NextResponse.json({ error: "Invalid verification code. Please try again." }, { status: 400 });
     }
+
+    // Reset rate limiter on successful verification
+    resetRateLimit(`verify-otp-email:${email}`);
 
     // Mark as verified and transition to PENDING admin approval
     const updatedUser = await db.user.update({

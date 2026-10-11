@@ -5,9 +5,20 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { signupSchema } from "@/lib/validations/auth";
 import { sendSignupOtp } from "@/lib/email";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    // 1. IP-level rate limiting to prevent automated Brevo quota abuse
+    const ip = getClientIp(request);
+    const ipLimit = checkRateLimit(`signup-ip:${ip}`, 5, 15 * 60 * 1000);
+    if (!ipLimit.success) {
+      return NextResponse.json(
+        { error: "Too many signup attempts from this connection. Please try again in 15 minutes." },
+        { status: 429 }
+      );
+    }
+
     const body: unknown = await request.json();
     const parsed = signupSchema.safeParse(body);
     if (!parsed.success) {
@@ -16,6 +27,15 @@ export async function POST(request: Request) {
 
     const email = parsed.data.email.toLowerCase();
     const username = parsed.data.username.toLowerCase();
+
+    // 2. Email-level rate limiting (max 3 signup attempts per 15 mins for the same email)
+    const emailLimit = checkRateLimit(`signup-email:${email}`, 3, 15 * 60 * 1000);
+    if (!emailLimit.success) {
+      return NextResponse.json(
+        { error: "Too many signup verification attempts for this email. Please check your inbox or wait 15 minutes." },
+        { status: 429 }
+      );
+    }
 
     // Check if an existing account is present
     const existingUser = await db.user.findFirst({

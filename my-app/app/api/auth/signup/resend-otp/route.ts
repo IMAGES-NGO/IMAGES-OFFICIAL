@@ -3,9 +3,19 @@ import { createHash, randomInt } from "crypto";
 import { db } from "@/lib/db";
 import { forgotPasswordSchema } from "@/lib/validations/auth";
 import { sendSignupOtp } from "@/lib/email";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const ipLimit = checkRateLimit(`resend-ip:${ip}`, 5, 15 * 60 * 1000);
+    if (!ipLimit.success) {
+      return NextResponse.json(
+        { error: "Too many requests from this network. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body: unknown = await request.json();
     const parsed = forgotPasswordSchema.safeParse(body);
     if (!parsed.success) {
@@ -13,6 +23,14 @@ export async function POST(request: Request) {
     }
 
     const email = parsed.data.email.toLowerCase();
+
+    const emailLimit = checkRateLimit(`resend-email:${email}`, 3, 10 * 60 * 1000);
+    if (!emailLimit.success) {
+      return NextResponse.json(
+        { error: "Too many verification requests for this email. Please wait a few minutes." },
+        { status: 429 }
+      );
+    }
 
     const user = await db.user.findUnique({
       where: { email },

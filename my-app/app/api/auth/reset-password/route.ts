@@ -3,9 +3,19 @@ import { createHash } from "crypto";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { resetPasswordSchema } from "@/lib/validations/auth";
+import { checkRateLimit, resetRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const ipLimit = checkRateLimit(`reset-ip:${ip}`, 10, 15 * 60 * 1000);
+    if (!ipLimit.success) {
+      return NextResponse.json(
+        { error: "Too many attempts from this connection. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body: unknown = await request.json();
     const parsed = resetPasswordSchema.safeParse(body);
     
@@ -15,6 +25,15 @@ export async function POST(request: Request) {
 
     const email = parsed.data.email.toLowerCase();
     const otp = parsed.data.otp;
+
+    // Rate limit OTP guessing attempts per email (max 5 attempts per 15 mins)
+    const emailLimit = checkRateLimit(`reset-email:${email}`, 5, 15 * 60 * 1000);
+    if (!emailLimit.success) {
+      return NextResponse.json(
+        { error: "Too many incorrect verification attempts. Please wait 15 minutes or request a new code." },
+        { status: 429 }
+      );
+    }
 
     const user = await db.user.findUnique({
       where: { email },
@@ -56,6 +75,9 @@ export async function POST(request: Request) {
         otpExpiresAt: null,
       },
     });
+
+    // Reset rate limiter on successful reset
+    resetRateLimit(`reset-email:${email}`);
 
     return NextResponse.json(
       { message: "Your password has been successfully reset." },
