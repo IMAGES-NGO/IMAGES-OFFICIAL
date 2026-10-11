@@ -45,19 +45,20 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
-      if (existingUser.status === "APPROVED") {
+      const currentStatus = existingUser.status as string;
+      if (currentStatus === "APPROVED") {
         return NextResponse.json(
           { error: "An account with that email or username already exists. Please log in." },
           { status: 409 }
         );
       }
-      if (existingUser.status === "PENDING") {
+      if (currentStatus === "PENDING") {
         return NextResponse.json(
           { error: "A signup request with that email or username is already pending administrator approval." },
           { status: 409 }
         );
       }
-      if (existingUser.status === "REJECTED") {
+      if (currentStatus === "REJECTED") {
         return NextResponse.json(
           { error: "A registration request with that email or username was previously declined." },
           { status: 409 }
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
-    if (existingUser && existingUser.status === "UNVERIFIED") {
+    if (existingUser && (existingUser.status as string) === "UNVERIFIED") {
       await db.user.update({
         where: { id: existingUser.id },
         data: {
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
           email,
           passwordHash,
           role: parsed.data.role,
-          status: "UNVERIFIED",
+          status: "UNVERIFIED" as any,
           otpHash,
           otpExpiresAt,
           verifiedAt: null,

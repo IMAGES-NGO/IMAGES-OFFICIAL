@@ -29,7 +29,7 @@ export async function GET() {
     const users = await db.user.findMany({
       where: {
         status: {
-          not: "UNVERIFIED",
+          not: "UNVERIFIED" as any,
         },
       },
       select: {

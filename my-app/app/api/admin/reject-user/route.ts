@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
     const user = await db.user.update({
       where: { id: userId },
-      data: { status: "REJECTED" },
+      data: { status: "REJECTED" as any },
     });
 
     // Explicitly do NOT send any email when rejecting a request

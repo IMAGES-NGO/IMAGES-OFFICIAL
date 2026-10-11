@@ -41,15 +41,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No pending signup found for this email." }, { status: 404 });
     }
 
-    if (user.status === "APPROVED") {
+    const currentStatus = user.status as string;
+    if (currentStatus === "APPROVED") {
       return NextResponse.json({ error: "This account has already been approved. Please log in." }, { status: 400 });
     }
 
-    if (user.status === "PENDING") {
+    if (currentStatus === "PENDING") {
       return NextResponse.json({ error: "Email is already verified. Your request is pending admin approval." }, { status: 400 });
     }
 
-    if (user.status !== "UNVERIFIED") {
+    if (currentStatus !== "UNVERIFIED") {
       return NextResponse.json({ error: "Invalid account status for verification." }, { status: 400 });
     }
 
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
     const updatedUser = await db.user.update({
       where: { id: user.id },
       data: {
-        status: "PENDING",
+        status: "PENDING" as any,
         verifiedAt: new Date(),
         otpHash: null,
         otpExpiresAt: null,

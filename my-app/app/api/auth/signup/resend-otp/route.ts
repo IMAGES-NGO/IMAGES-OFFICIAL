@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       where: { email },
     });
 
-    if (!user || user.status !== "UNVERIFIED") {
+    if (!user || (user.status as string) !== "UNVERIFIED") {
       return NextResponse.json(
         { error: "No unverified signup request found for this email." },
         { status: 400 }
