@@ -13,8 +13,10 @@ enum UserRole {
 }
 
 enum UserStatus {
+  UNVERIFIED
   PENDING
   APPROVED
+  REJECTED
 }
 
 model User {

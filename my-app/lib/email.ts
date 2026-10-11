@@ -55,3 +55,32 @@ export async function sendPasswordResetOtp(email: string, otp: string) {
     throw new Error(`Brevo returned ${response.status}`);
   }
 }
+
+export async function sendSignupOtp(email: string, otp: string) {
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL;
+  
+  if (!apiKey || !senderEmail) {
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[DEV EMAIL NOTIFICATION] Signup verification OTP for ${email}: ${otp}`);
+      return;
+    }
+    throw new Error("Brevo is not configured");
+  }
+
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: { "api-key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sender: { email: senderEmail, name: process.env.BREVO_SENDER_NAME ?? "IMAGES" },
+      to: [{ email }],
+      subject: "IMAGES Account Verification Code",
+      textContent: `Your IMAGES signup verification code is ${otp}. It expires in 10 minutes.\n\nPlease enter this code to complete your signup request for administrator approval.\n\nThank you,\nIMAGES Team`,
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Brevo returned ${response.status}`);
+  }
+}
+

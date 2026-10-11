@@ -27,6 +27,11 @@ export async function GET() {
     }
 
     const users = await db.user.findMany({
+      where: {
+        status: {
+          not: "UNVERIFIED",
+        },
+      },
       select: {
         id: true,
         username: true,

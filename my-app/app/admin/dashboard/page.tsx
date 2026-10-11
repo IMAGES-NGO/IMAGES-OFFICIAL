@@ -678,25 +678,47 @@ export default function AdminDashboardPage() {
                       <p className="font-semibold text-zinc-900">{pendingUser.username}</p>
                       <p className="text-xs text-zinc-500">{pendingUser.email} &middot; {pendingUser.role}</p>
                     </div>
-                    <button
-                      onClick={async () => {
-                        try {
-                          const res = await fetch("/api/admin/approve-user", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ userId: pendingUser.id }),
-                          });
-                          if (!res.ok) throw new Error("Failed to approve");
-                          setUsers(users.map(u => u.id === pendingUser.id ? { ...u, status: "APPROVED" } : u));
-                          toast.success("User approved");
-                        } catch (err) {
-                          toast.error("Approval failed");
-                        }
-                      }}
-                      className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition"
-                    >
-                      Approve
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch("/api/admin/approve-user", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ userId: pendingUser.id }),
+                            });
+                            if (!res.ok) throw new Error("Failed to approve");
+                            setUsers(users.map(u => u.id === pendingUser.id ? { ...u, status: "APPROVED" } : u));
+                            toast.success("User approved");
+                          } catch (err) {
+                            toast.error("Approval failed");
+                          }
+                        }}
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition shadow-xs"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Are you sure you want to reject the request for ${pendingUser.username}?`)) return;
+                          try {
+                            const res = await fetch("/api/admin/reject-user", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ userId: pendingUser.id }),
+                            });
+                            if (!res.ok) throw new Error("Failed to reject");
+                            setUsers(users.map(u => u.id === pendingUser.id ? { ...u, status: "REJECTED" } : u));
+                            toast.success("User request rejected");
+                          } catch (err) {
+                            toast.error("Rejection failed");
+                          }
+                        }}
+                        className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 transition shadow-xs"
+                      >
+                        Reject
+                      </button>
+                    </div>
                   </div>
                 ))}
             </div>
