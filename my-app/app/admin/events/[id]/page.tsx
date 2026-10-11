@@ -41,6 +41,7 @@ interface EventItem {
   startTime?: string | null;
   endTime?: string | null;
   status: string;
+  attendanceMarked?: boolean;
 }
 
 export default function AdminManageEventPage() {

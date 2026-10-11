@@ -61,6 +61,7 @@ interface EventItem {
   startTime?: string | null;
   endTime?: string | null;
   status: string;
+  attendanceMarked?: boolean;
   createdAt?: string;
   isFromDatabase?: boolean;
 }

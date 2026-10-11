@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
     // save locally or as a data URI so admin operations never crash or block
     if (!uploadResult) {
       const parts = file.name.split(".");
-      const ext = parts.length > 1 ? parts.pop() : "png";
+      const ext = (parts.length > 1 ? parts.pop() : "png") || "png";
       const baseName = parts.join(".");
       const safeBaseName = baseName.replace(/[^a-zA-Z0-9_-]/g, "_");
       const fileName = `${Date.now()}-${safeBaseName}.${ext}`;
@@ -219,6 +219,13 @@ export async function POST(request: NextRequest) {
           height: 800,
         };
       }
+    }
+
+    if (!uploadResult) {
+      return NextResponse.json(
+        { error: "Failed to upload or process image." },
+        { status: 500 }
+      );
     }
 
     // Save metadata to Prisma database (with fallback for testing before DB is provisioned)

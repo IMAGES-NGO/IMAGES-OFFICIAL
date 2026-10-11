@@ -4,13 +4,17 @@ export interface DevEventItem {
   description: string;
   eventType: string;
   images: string[];
+  coverImage?: string | null;
   participantIds: string[];
+  requestedParticipantIds?: string[];
   participants?: Array<{ id: string; username: string }>;
+  requestedParticipants?: Array<{ id: string; username: string }>;
   eventDate: string;
   location: string;
   startTime?: string | null;
   endTime?: string | null;
   status: string;
+  attendanceMarked?: boolean;
   createdAt: string;
   updatedAt: string;
   isFromDatabase?: boolean;

@@ -1,0 +1,11 @@
+{
+  "name": "images-website-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix my-app run dev",
+    "build": "npm --prefix my-app run build",
+    "start": "npm --prefix my-app run start",
+    "lint": "npm --prefix my-app run lint"
+  }
+}
