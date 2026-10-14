@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     // Generate a new 6-digit OTP
     const otp = randomInt(100000, 1000000).toString();
     const otpHash = createHash("sha256").update(otp).digest("hex");
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+    const otpExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes from now
 
     await db.user.update({
       where: { id: user.id },

@@ -47,7 +47,7 @@ export async function sendPasswordResetOtp(email: string, otp: string) {
       sender: { email: senderEmail, name: process.env.BREVO_SENDER_NAME ?? "IMAGES" },
       to: [{ email }],
       subject: "IMAGES Password Reset",
-      textContent: `Your IMAGES password reset code is ${otp}. It expires in 10 minutes.\n\nIf you did not request this, please ignore this email.`,
+      textContent: `Your IMAGES password reset code is ${otp}. It expires in 30 minutes.\n\nIf you did not request this, please ignore this email.`,
     }),
   });
   
@@ -75,7 +75,7 @@ export async function sendSignupOtp(email: string, otp: string) {
       sender: { email: senderEmail, name: process.env.BREVO_SENDER_NAME ?? "IMAGES" },
       to: [{ email }],
       subject: "IMAGES Account Verification Code",
-      textContent: `Your IMAGES signup verification code is ${otp}. It expires in 10 minutes.\n\nPlease enter this code to complete your signup request for administrator approval.\n\nThank you,\nIMAGES Team`,
+      textContent: `Your IMAGES signup verification code is ${otp}. It expires in 30 minutes.\n\nPlease enter this code to complete your signup request for administrator approval.\n\nThank you,\nIMAGES Team`,
     }),
   });
   

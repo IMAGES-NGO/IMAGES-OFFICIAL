@@ -222,24 +222,29 @@ export default function SignupPage() {
             </button>
           </form>
 
-          <div className="mt-6 text-center text-xs text-zinc-600">
-            Didn&apos;t receive the code?{" "}
-            <button
-              type="button"
-              onClick={handleResendOtp}
-              disabled={resendCooldown > 0 || isResendingOtp}
-              className="font-medium text-black underline disabled:opacity-50 inline-flex items-center gap-1"
-            >
-              {isResendingOtp ? (
-                <>
-                  <RefreshCw className="h-3 w-3 animate-spin" /> Sending...
-                </>
-              ) : resendCooldown > 0 ? (
-                `Resend in ${resendCooldown}s`
-              ) : (
-                "Resend code"
-              )}
-            </button>
+          <div className="mt-6 rounded-lg border border-zinc-100 bg-zinc-50 p-3 text-center text-xs text-zinc-600">
+            <p>
+              Didn&apos;t receive the email? Check your <strong>Spam</strong> or <strong>Junk</strong> folder.
+            </p>
+            <div className="mt-2 pt-2 border-t border-zinc-200/60 flex items-center justify-center gap-1.5">
+              <span>Need a new code?</span>
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={resendCooldown > 0 || isResendingOtp}
+                className="font-semibold text-black underline hover:text-zinc-700 disabled:no-underline disabled:text-zinc-400 disabled:cursor-not-allowed inline-flex items-center gap-1 transition"
+              >
+                {isResendingOtp ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 animate-spin" /> Sending...
+                  </>
+                ) : resendCooldown > 0 ? (
+                  `Resend code in 0:${resendCooldown < 10 ? `0${resendCooldown}` : resendCooldown}`
+                ) : (
+                  "Resend code now"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>

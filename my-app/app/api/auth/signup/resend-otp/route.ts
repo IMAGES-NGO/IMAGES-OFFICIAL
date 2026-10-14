@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
     const otp = randomInt(100000, 1000000).toString();
     const otpHash = createHash("sha256").update(otp).digest("hex");
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otpExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
     await db.user.update({
       where: { id: user.id },
