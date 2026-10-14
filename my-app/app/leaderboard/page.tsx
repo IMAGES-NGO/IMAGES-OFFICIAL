@@ -87,22 +87,6 @@ export default function LeaderboardPage() {
                 Rankings and the top 3 podium will unlock once at least <strong>3 members</strong> earn points by participating in NGO events and volunteering.
               </p>
 
-              {/* Progress counter */}
-              <div className="mt-8 max-w-xs mx-auto bg-zinc-50 rounded-2xl border border-zinc-200 p-4">
-                <div className="flex justify-between items-center text-xs font-medium text-zinc-600 mb-2">
-                  <span>Contributors with points</span>
-                  <span className="font-bold text-zinc-900">{rankedMembers.length} / 3</span>
-                </div>
-                <div className="w-full bg-zinc-200 h-2.5 rounded-full overflow-hidden">
-                  <div
-                    className="bg-amber-500 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min((rankedMembers.length / 3) * 100, 100)}%` }}
-                  ></div>
-                </div>
-                <p className="mt-2 text-[11px] text-zinc-400">
-                  {3 - rankedMembers.length} more active {3 - rankedMembers.length === 1 ? "member" : "members"} needed to reveal rankings
-                </p>
-              </div>
 
               {/* CTAs */}
               <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
