@@ -6,6 +6,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const users = await db.user.findMany({
+      where: {
+        status: "APPROVED",
+      },
       select: {
         id: true,
         username: true,
