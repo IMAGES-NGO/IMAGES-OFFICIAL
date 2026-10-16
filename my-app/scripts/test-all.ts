@@ -178,6 +178,26 @@ async function runTestSuite() {
   );
 
   await test(
+    "HTTP 413 Upload Payload Size Error Handling",
+    "Ensures HTTP 413 response returns clean user-facing error message without JSON parse failure",
+    async () => {
+      const { parseUploadResponseError, MAX_IMAGE_SIZE_MB } = await import("../lib/image-client");
+      const mock413Response = new Response(
+        "<html><head><title>413 Request Entity Too Large</title></head><body><h1>413 Request Entity Too Large</h1></body></html>",
+        {
+          status: 413,
+          statusText: "Request Entity Too Large",
+          headers: { "Content-Type": "text/html" },
+        }
+      );
+      const errorMsg = await parseUploadResponseError(mock413Response, "IMG_2292.jpg");
+      assert(errorMsg.includes("IMG_2292.jpg"), "Includes filename in error message");
+      assert(errorMsg.includes("too large for the server"), "Identifies too large error clearly");
+      assert(errorMsg.includes(`${MAX_IMAGE_SIZE_MB}MB`), "Specifies size limit");
+    }
+  );
+
+  await test(
     "Upload Data URI and Resilient Fallback Construction",
     "Verifies binary buffer converts safely to base64 Data URI for storage or fallback",
     () => {
@@ -225,6 +245,7 @@ async function runTestSuite() {
         username: "ngo_volunteer_1",
         email: "volunteer@imagesngo.org",
         password: "ValidPassword123!",
+        role: "MEMBER",
       });
       assert(valid.success, "Valid signup details pass schema");
 

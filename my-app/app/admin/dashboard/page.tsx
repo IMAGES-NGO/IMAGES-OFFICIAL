@@ -7,6 +7,13 @@ import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import {
+  validateImageFile,
+  compressImageIfNeeded,
+  parseUploadResponseError,
+  MAX_IMAGE_SIZE_MB,
+  MAX_IMAGE_SIZE_BYTES,
+} from "@/lib/image-client";
+import {
   Calendar,
   Clock,
   MapPin,
@@ -337,22 +344,33 @@ export default function AdminDashboardPage() {
     setImageUploadError(null);
 
     const errors: string[] = [];
+    let successCount = 0;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
 
-      if (!file.type.startsWith("image/")) {
-        errors.push(`${file.name}: Not a supported image format`);
-        continue;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        errors.push(`${file.name}: Exceeds 10MB limit`);
+      // 1. Initial format and sanity validation
+      const initialValidation = validateImageFile(file, 25);
+      if (!initialValidation.valid) {
+        errors.push(initialValidation.error || `${file.name}: Invalid file format`);
         continue;
       }
 
       try {
+        // 2. Client-side compression for high-res photos
+        const fileToUpload = await compressImageIfNeeded(file);
+
+        // 3. Strict size limit check after compression
+        if (fileToUpload.size > MAX_IMAGE_SIZE_BYTES) {
+          const sizeMb = (fileToUpload.size / (1024 * 1024)).toFixed(1);
+          errors.push(
+            `"${file.name}" is too large (${sizeMb}MB). Maximum allowed size is ${MAX_IMAGE_SIZE_MB}MB.`
+          );
+          continue;
+        }
+
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", fileToUpload);
         formData.append("title", formTitle || file.name);
         formData.append("category", "EVENTS");
 
@@ -361,24 +379,42 @@ export default function AdminDashboardPage() {
           body: formData,
         });
 
-        const data = await res.json();
         if (!res.ok) {
-          throw new Error(data.error || "Failed to upload image.");
+          const parsedError = await parseUploadResponseError(res, file.name);
+          throw new Error(parsedError);
         }
 
+        const data = await res.json();
         if (data.image?.url) {
-          // Incrementally append each uploaded photo
           setFormImages((prev) => [...prev, data.image.url]);
+          successCount++;
         }
       } catch (err: unknown) {
-        console.error(`Upload error for ${file.name}:`, err);
-        errors.push(`${file.name}: ${err instanceof Error ? err.message : "Upload failed"}`);
+        const errorMsg =
+          err instanceof Error ? err.message : `Failed to upload ${file.name}`;
+        console.warn(`Upload error for ${file.name}:`, errorMsg);
+        errors.push(errorMsg);
       }
     }
 
     if (errors.length > 0) {
-      setImageUploadError(errors.join("; "));
+      const combinedError = errors.join("\n");
+      setImageUploadError(combinedError);
+      toast.error(
+        errors.length === 1
+          ? errors[0]
+          : `${errors.length} image(s) failed to upload. Check Photos tab.`
+      );
     }
+
+    if (successCount > 0) {
+      toast.success(
+        successCount === 1
+          ? "Photo added to event gallery"
+          : `${successCount} photos added to event gallery`
+      );
+    }
+
     setIsUploadingImage(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -422,29 +458,54 @@ export default function AdminDashboardPage() {
   const handleCoverImageUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0];
-    if (!file.type.startsWith("image/")) {
-      setImageUploadError("Cover photo must be an image file.");
+
+    const validation = validateImageFile(file, 25);
+    if (!validation.valid) {
+      const errMsg =
+        validation.error || `Cover photo must be a valid image under ${MAX_IMAGE_SIZE_MB}MB.`;
+      setImageUploadError(errMsg);
+      toast.error(errMsg);
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setImageUploadError("Cover photo exceeds 10MB limit.");
-      return;
-    }
+
     setIsUploadingCoverImage(true);
     setImageUploadError(null);
     try {
+      const fileToUpload = await compressImageIfNeeded(file);
+      if (fileToUpload.size > MAX_IMAGE_SIZE_BYTES) {
+        const sizeMb = (fileToUpload.size / (1024 * 1024)).toFixed(1);
+        const errMsg = `Cover photo is too large (${sizeMb}MB). Maximum allowed size is ${MAX_IMAGE_SIZE_MB}MB.`;
+        setImageUploadError(errMsg);
+        toast.error(errMsg);
+        return;
+      }
+
       const formData = new FormData();
-      formData.append("file", file);
-      formData.append("title", formTitle || file.name);
+      formData.append("file", fileToUpload);
+      formData.append("title", formTitle ? `${formTitle} Cover` : file.name);
       formData.append("category", "EVENTS");
+
       const res = await fetch("/api/admin/images", { method: "POST", body: formData });
+      if (!res.ok) {
+        const parsedError = await parseUploadResponseError(res, "Cover photo");
+        throw new Error(parsedError);
+      }
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to upload.");
-      if (data.image?.url) setFormCoverImage(data.image.url);
+      if (data.image?.url) {
+        setFormCoverImage(data.image.url);
+        toast.success("Cover photo uploaded successfully!");
+      }
     } catch (err: unknown) {
-      setImageUploadError(err instanceof Error ? err.message : "Upload failed");
+      const errorMsg =
+        err instanceof Error ? err.message : "Cover photo upload failed";
+      setImageUploadError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsUploadingCoverImage(false);
+      if (coverInputRef.current) {
+        coverInputRef.current.value = "";
+      }
     }
   };
 
@@ -502,19 +563,44 @@ export default function AdminDashboardPage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to save event.");
+        let errorMsg = "Failed to save event.";
+        if (res.status === 413) {
+          errorMsg =
+            "Event submission failed: Content is too large. Please remove large images or reduce the number of photos.";
+        } else {
+          try {
+            const data = await res.json();
+            errorMsg = data.error || data.message || errorMsg;
+          } catch {
+            const text = await res.text().catch(() => "");
+            if (
+              text &&
+              text.length < 150 &&
+              !text.includes("<html") &&
+              !text.includes("<!DOCTYPE")
+            ) {
+              errorMsg = text.trim();
+            }
+          }
+        }
+        throw new Error(errorMsg);
       }
 
+      const data = await res.json();
+
       setFormSuccess(editingEventId ? "Event updated successfully!" : "Event created successfully!");
+      toast.success(editingEventId ? "Event updated!" : "Event created!");
       fetchEvents();
 
       setTimeout(() => {
         setIsModalOpen(false);
       }, 1000);
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "Failed to save event.");
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to save event.";
+      setFormError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -1068,6 +1154,12 @@ export default function AdminDashboardPage() {
                       {formImages.length}
                     </span>
                   )}
+                  {imageUploadError && (
+                    <span
+                      className="h-2 w-2 rounded-full bg-red-500 animate-pulse"
+                      title="Upload error in Photos"
+                    />
+                  )}
                 </button>
               </div>
             </div>
@@ -1210,9 +1302,19 @@ export default function AdminDashboardPage() {
                 {activeModalTab === "MEDIA" && (
                   <div className="space-y-5 animate-fade-in">
                     {imageUploadError && (
-                      <div className="flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 p-2.5 text-xs text-red-700">
-                        <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-                        <span>{imageUploadError}</span>
+                      <div className="flex items-start justify-between gap-2.5 rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-700 shadow-xs">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="h-4 w-4 shrink-0 text-red-500 mt-0.5" />
+                          <div className="whitespace-pre-line leading-relaxed font-medium">{imageUploadError}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setImageUploadError(null)}
+                          className="text-red-400 hover:text-red-700 transition p-0.5 rounded-md hover:bg-red-100/50"
+                          title="Dismiss error"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
                     )}
 
@@ -1269,7 +1371,7 @@ export default function AdminDashboardPage() {
                             </div>
                           )}
                           <div className="text-xs font-bold text-amber-900">{isUploadingCoverImage ? "Uploading Cover..." : "Click to upload cover photo"}</div>
-                          {!isUploadingCoverImage && <p className="text-[10px] text-amber-600 mt-0.5">JPG, PNG, WebP (up to 10MB)</p>}
+                          {!isUploadingCoverImage && <p className="text-[10px] text-amber-600 mt-0.5">JPG, PNG, WebP (up to 5MB, auto-compressed for web)</p>}
                         </div>
                       )}
                     </div>
@@ -1314,7 +1416,7 @@ export default function AdminDashboardPage() {
                           {isUploadingImage ? "Uploading..." : "Click to add event photos"}
                         </div>
                         <p className="text-[10px] text-zinc-500 mt-0.5">
-                          Supports JPG, PNG, WebP (up to 10MB each)
+                          Supports JPG, PNG, WebP (up to 5MB each, auto-compressed for web)
                         </p>
                       </div>
 

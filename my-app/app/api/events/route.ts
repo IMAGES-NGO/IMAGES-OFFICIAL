@@ -170,6 +170,21 @@ export async function POST(request: NextRequest) {
       ? images.filter((img) => typeof img === "string" && img.trim().length > 0)
       : [];
 
+    const MAX_IMAGE_STRING_LEN = 1024 * 1024; // 1MB string size guard
+    if (coverImage && typeof coverImage === "string" && coverImage.length > MAX_IMAGE_STRING_LEN) {
+      return NextResponse.json(
+        { error: "Cover image exceeds maximum allowed data size limit." },
+        { status: 413 }
+      );
+    }
+
+    if (cleanImages.some((img) => img.length > MAX_IMAGE_STRING_LEN)) {
+      return NextResponse.json(
+        { error: "One or more gallery images exceed maximum allowed data size limit." },
+        { status: 413 }
+      );
+    }
+
     const parsedDate = new Date(eventDate);
     if (isNaN(parsedDate.getTime())) {
       return NextResponse.json({ error: "Invalid event date format." }, { status: 400 });

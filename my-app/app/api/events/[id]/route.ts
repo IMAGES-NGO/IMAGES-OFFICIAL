@@ -110,8 +110,29 @@ export async function PUT(
     if (title !== undefined) dataToUpdate.title = title.trim();
     if (description !== undefined) dataToUpdate.description = description.trim();
     if (eventType !== undefined) dataToUpdate.eventType = eventType.trim().toUpperCase();
-    if (images !== undefined) dataToUpdate.images = images;
-    if (coverImage !== undefined) dataToUpdate.coverImage = coverImage;
+    const MAX_IMAGE_STRING_LEN = 1024 * 1024; // 1MB string size guard
+    if (coverImage !== undefined) {
+      if (typeof coverImage === "string" && coverImage.length > MAX_IMAGE_STRING_LEN) {
+        return NextResponse.json(
+          { error: "Cover image exceeds maximum allowed data size limit." },
+          { status: 413 }
+        );
+      }
+      dataToUpdate.coverImage = coverImage;
+    }
+
+    if (images !== undefined) {
+      if (
+        Array.isArray(images) &&
+        images.some((img) => typeof img === "string" && img.length > MAX_IMAGE_STRING_LEN)
+      ) {
+        return NextResponse.json(
+          { error: "One or more gallery images exceed maximum allowed data size limit." },
+          { status: 413 }
+        );
+      }
+      dataToUpdate.images = images;
+    }
     if (participantIds !== undefined) dataToUpdate.participantIds = participantIds;
     if (requestedParticipantIds !== undefined) dataToUpdate.requestedParticipantIds = requestedParticipantIds;
     if (location !== undefined) dataToUpdate.location = location.trim();

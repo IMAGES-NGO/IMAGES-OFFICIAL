@@ -11,6 +11,14 @@ import {
   Loader2, Star, ArrowLeft, ExternalLink,
   Image as ImageIcon
 } from "lucide-react";
+import toast from "react-hot-toast";
+import {
+  validateImageFile,
+  compressImageIfNeeded,
+  parseUploadResponseError,
+  MAX_IMAGE_SIZE_MB,
+  MAX_IMAGE_SIZE_BYTES,
+} from "@/lib/image-client";
 
 interface ParticipantUser {
   id: string;
@@ -151,12 +159,31 @@ export default function AdminManageEventPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm),
       });
-      if (res.ok) {
-        await fetchData();
-        setIsEditing(false);
+
+      if (!res.ok) {
+        let errorMsg = "Failed to update event";
+        if (res.status === 413) {
+          errorMsg = "Event content is too large. Please shorten description or reduce image sizes.";
+        } else {
+          try {
+            const data = await res.json();
+            errorMsg = data.error || data.message || errorMsg;
+          } catch {
+            const text = await res.text().catch(() => "");
+            if (text && text.length < 150 && !text.includes("<html") && !text.includes("<!DOCTYPE")) {
+              errorMsg = text.trim();
+            }
+          }
+        }
+        throw new Error(errorMsg);
       }
+
+      toast.success("Event details updated successfully!");
+      await fetchData();
+      setIsEditing(false);
     } catch (error) {
-      console.error("Failed to update event:", error);
+      console.warn("Failed to update event:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update event");
     } finally {
       setIsSaving(false);
     }
@@ -167,10 +194,14 @@ export default function AdminManageEventPage() {
       try {
         const res = await fetch(`/api/events/${eventId}`, { method: "DELETE" });
         if (res.ok) {
+          toast.success("Event deleted");
           router.push("/admin/dashboard");
+        } else {
+          toast.error("Failed to delete event");
         }
       } catch (error) {
         console.error("Failed to delete event:", error);
+        toast.error("Failed to delete event");
       }
     }
   };
@@ -179,10 +210,25 @@ export default function AdminManageEventPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const validation = validateImageFile(file, 25);
+    if (!validation.valid) {
+      toast.error(validation.error || `Please select an image under ${MAX_IMAGE_SIZE_MB}MB.`);
+      if (e.target) e.target.value = '';
+      return;
+    }
+
     try {
       setIsUploading(true);
+
+      const fileToUpload = await compressImageIfNeeded(file);
+      if (fileToUpload.size > MAX_IMAGE_SIZE_BYTES) {
+        const sizeMb = (fileToUpload.size / (1024 * 1024)).toFixed(1);
+        toast.error(`"${file.name}" is too large (${sizeMb}MB). Maximum allowed size is ${MAX_IMAGE_SIZE_MB}MB.`);
+        return;
+      }
+
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", fileToUpload);
       formData.append("title", `${event.title} ${isCover ? 'Cover' : 'Gallery'}`);
       formData.append("category", "EVENTS");
 
@@ -191,9 +237,16 @@ export default function AdminManageEventPage() {
         body: formData,
       });
 
-      if (!uploadRes.ok) throw new Error("Upload failed");
+      if (!uploadRes.ok) {
+        const parsedError = await parseUploadResponseError(uploadRes, file.name);
+        throw new Error(parsedError);
+      }
+
       const uploadData = await uploadRes.json();
-      const imageUrl = uploadData.image.url;
+      const imageUrl = uploadData.image?.url;
+      if (!imageUrl) {
+        throw new Error("Server did not return a valid image URL.");
+      }
 
       // Update event with new image
       const updateData = isCover 
@@ -206,11 +259,19 @@ export default function AdminManageEventPage() {
         body: JSON.stringify(updateData),
       });
 
-      if (updateRes.ok) {
-        await fetchData();
+      if (!updateRes.ok) {
+        let msg = "Failed to update event with new image.";
+        if (updateRes.status === 413) {
+          msg = "Event content is too large. Image could not be attached.";
+        }
+        throw new Error(msg);
       }
+
+      toast.success(isCover ? "Cover image updated successfully!" : "Gallery photo added successfully!");
+      await fetchData();
     } catch (error) {
-      console.error("Image upload error:", error);
+      console.warn("Image upload error:", error);
+      toast.error(error instanceof Error ? error.message : "Image upload failed");
     } finally {
       setIsUploading(false);
       if (e.target) e.target.value = '';

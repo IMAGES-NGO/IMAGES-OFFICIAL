@@ -145,8 +145,8 @@ export async function POST(request: NextRequest) {
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "File exceeds maximum size limit of 10MB." },
-        { status: 400 }
+        { error: `File exceeds maximum size limit of ${Math.round(MAX_FILE_SIZE / (1024 * 1024))}MB.` },
+        { status: 413 }
       );
     }
 
@@ -209,15 +209,25 @@ export async function POST(request: NextRequest) {
           height: 800,
         };
       } catch (fsErr) {
-        console.warn("Filesystem write fallback failed, generating base64 Data URI:", fsErr);
-        uploadResult = {
-          secure_url: `data:${file.type};base64,${buffer.toString("base64")}`,
-          public_id: `data_${Date.now()}`,
-          format: ext,
-          bytes: file.size,
-          width: 1200,
-          height: 800,
-        };
+        console.warn("Filesystem write fallback failed:", fsErr);
+        if (buffer.length <= 500 * 1024) {
+          uploadResult = {
+            secure_url: `data:${file.type};base64,${buffer.toString("base64")}`,
+            public_id: `data_${Date.now()}`,
+            format: ext,
+            bytes: file.size,
+            width: 1200,
+            height: 800,
+          };
+        } else {
+          return NextResponse.json(
+            {
+              error:
+                "Image storage is currently unavailable and file is too large for memory fallback. Please check Cloudinary configuration or storage permissions.",
+            },
+            { status: 500 }
+          );
+        }
       }
     }
 
