@@ -1,5 +1,9 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+Founded in 1991, IMAGES is a Non Profit Organization (NPO) and Non Government Organization (NGO) comprising students of PEC, University of Technology, Chandigarh. Our organization's motto is "exploring in you...you!!" which clearly emphasizes that the chief aim of the body is all round development of its members.
+
+The organization aims at multi-faceted development of its members through innovative and enterprising projects and regular meetings.
+
 ## Getting Started
 
 First, run the development server:
