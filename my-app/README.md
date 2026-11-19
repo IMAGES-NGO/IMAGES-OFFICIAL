@@ -76,6 +76,7 @@ Profile data is assembled in `lib/profile.ts` (`getUserProfile`, `updateUserProf
 - **Colour coding:** admin rows have an amber left border and tint, plus an amber "Admin" badge. Members show a sky "Member" badge. A legend sits above the table, and the same amber marks admins on profile pages and in Excel exports.
 - **Search** by username, email, SID or phone. **Filter** by role, status (approved / pending / rejected) and residence.
 - Each row shows SID, phone, residence, points, events attended and join date, with a link to the member's profile.
+- **Roles:** every signup is created as a Member, and approving a request always grants Member. Admins promote or demote people with **Make admin / Remove admin** on this page, which calls `POST /api/admin/set-role`. Admins can't change their own role, and only approved members can be promoted.
 - Data comes from `GET /api/admin/members` (admin only), built by `lib/members.ts`.
 
 ## Admin: Excel Export

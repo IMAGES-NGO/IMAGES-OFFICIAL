@@ -1,4 +1,9 @@
-import { NextResponse } from "next/server";
+/** Builds an error that includes Brevo's own reason (e.g. "unrecognised IP address"). */
+async function brevoError(response: Response) {
+  const body = (await response.json().catch(() => null)) as { code?: string; message?: string } | null;
+  const reason = body?.message ? `: ${body.code ?? "error"} - ${body.message}` : "";
+  return new Error(`Brevo returned ${response.status}${reason}`);
+}
 
 export async function sendApprovalEmail(email: string, username: string) {
   const apiKey = process.env.BREVO_API_KEY;
@@ -24,7 +29,7 @@ export async function sendApprovalEmail(email: string, username: string) {
   });
   
   if (!response.ok) {
-    throw new Error(`Brevo returned ${response.status}`);
+    throw await brevoError(response);
   }
 }
 
@@ -52,7 +57,7 @@ export async function sendPasswordResetOtp(email: string, otp: string) {
   });
   
   if (!response.ok) {
-    throw new Error(`Brevo returned ${response.status}`);
+    throw await brevoError(response);
   }
 }
 
@@ -80,7 +85,7 @@ export async function sendSignupOtp(email: string, otp: string) {
   });
   
   if (!response.ok) {
-    throw new Error(`Brevo returned ${response.status}`);
+    throw await brevoError(response);
   }
 }
 

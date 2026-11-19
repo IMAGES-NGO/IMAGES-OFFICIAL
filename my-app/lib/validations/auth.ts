@@ -11,7 +11,8 @@ export const signupSchema = z.object({
   username: z.string().trim().min(3, "Username must be at least 3 characters").max(30, "Username must be at most 30 characters").regex(/^[a-zA-Z0-9_]+$/, "Username can contain letters, numbers, and underscores only"),
   email: z.string().email("Enter a valid email address"),
   password: passwordSchema,
-  role: z.enum(["ADMIN", "MEMBER"]),
+  // No role here on purpose: every signup is a MEMBER. Admins are promoted
+  // by an existing admin from /admin/members.
 });
 
 export const loginSchema = z.object({

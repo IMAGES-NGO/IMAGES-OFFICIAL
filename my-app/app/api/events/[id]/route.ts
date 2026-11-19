@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { devEventsStore } from "@/lib/events-store";
+import { devFallbacksEnabled } from "@/lib/dev-fallback";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +53,15 @@ export async function GET(
         });
       }
     } catch (error) {
-      console.warn("Database event query failed (falling back to dev store):", error);
+      console.warn("Database event query failed:", error);
+      if (!devFallbacksEnabled) {
+        return NextResponse.json({ error: "Failed to load the event. Please try again." }, { status: 500 });
+      }
     }
+  }
+
+  if (!devFallbacksEnabled) {
+    return NextResponse.json({ error: "Event not found." }, { status: 404 });
   }
 
   // Development fallback store check
@@ -133,7 +142,16 @@ export async function PUT(
       }
       dataToUpdate.images = images;
     }
-    if (participantIds !== undefined) dataToUpdate.participantIds = participantIds;
+    // Dedupe and keep only real user ids: a duplicate would award points twice in the
+    // ledger while the user total only goes up once.
+    let nextParticipantIds: string[] | undefined;
+    if (participantIds !== undefined) {
+      if (!Array.isArray(participantIds) || participantIds.some((pid) => typeof pid !== "string")) {
+        return NextResponse.json({ error: "participantIds must be an array of user ids." }, { status: 400 });
+      }
+      nextParticipantIds = Array.from(new Set(participantIds as string[])).filter((pid) => UUID_REGEX.test(pid));
+      dataToUpdate.participantIds = nextParticipantIds;
+    }
     if (requestedParticipantIds !== undefined) dataToUpdate.requestedParticipantIds = requestedParticipantIds;
     if (location !== undefined) dataToUpdate.location = location.trim();
     if (startTime !== undefined) dataToUpdate.startTime = startTime ? startTime.trim() : null;
@@ -156,53 +174,65 @@ export async function PUT(
           return NextResponse.json({ error: "Event not found in DB." }, { status: 404 });
         }
 
-        const updatedEvent = await db.event.update({
-          where: { id },
-          data: dataToUpdate,
-        });
-
-        if (participantIds !== undefined) {
-          const oldIds = existingEvent.participantIds || [];
-          const newIds = (participantIds as string[]).filter((pid) => !oldIds.includes(pid) && UUID_REGEX.test(pid));
-          const removedIds = oldIds.filter((pid) => !(participantIds as string[]).includes(pid) && UUID_REGEX.test(pid));
-          
-          const eventTypeObj = await db.eventType.findFirst({
-            where: { 
-              name: {
-                equals: updatedEvent.eventType,
-                mode: 'insensitive'
-              }
-            }
+        // Event update and point changes commit together, so a failure can't leave
+        // participants and point totals out of sync.
+        const updatedEvent = await db.$transaction(async (tx) => {
+          const updated = await tx.event.update({
+            where: { id },
+            data: dataToUpdate,
           });
-          const pointsPerUser = eventTypeObj ? eventTypeObj.points : 0;
-            
-          if (pointsPerUser > 0 && (newIds.length > 0 || removedIds.length > 0)) {
-            await db.$transaction(async (tx) => {
-              if (newIds.length > 0) {
-                const transactionsData = newIds.map((userId) => ({
-                  userId,
-                  amount: pointsPerUser,
-                  reason: `Attended Event: ${updatedEvent.title}`,
-                  eventId: id
-                }));
-                await tx.pointTransaction.createMany({ data: transactionsData });
+
+          if (nextParticipantIds !== undefined) {
+            const oldIds = existingEvent.participantIds || [];
+            const newIds = nextParticipantIds.filter((pid) => !oldIds.includes(pid));
+            const removedIds = oldIds.filter((pid) => !nextParticipantIds.includes(pid) && UUID_REGEX.test(pid));
+
+            if (newIds.length > 0) {
+              const eventTypeObj = await tx.eventType.findFirst({
+                where: { name: { equals: updated.eventType, mode: "insensitive" } },
+              });
+              const pointsPerUser = eventTypeObj?.points ?? 0;
+              if (pointsPerUser > 0) {
+                await tx.pointTransaction.createMany({
+                  data: newIds.map((userId) => ({
+                    userId,
+                    amount: pointsPerUser,
+                    reason: `Attended Event: ${updated.title}`,
+                    eventId: id,
+                  })),
+                });
                 await tx.user.updateMany({
                   where: { id: { in: newIds } },
-                  data: { points: { increment: pointsPerUser } }
+                  data: { points: { increment: pointsPerUser } },
                 });
               }
-              if (removedIds.length > 0) {
-                await tx.pointTransaction.deleteMany({
-                  where: { eventId: id, userId: { in: removedIds } }
-                });
-                await tx.user.updateMany({
-                  where: { id: { in: removedIds } },
-                  data: { points: { decrement: pointsPerUser } }
-                });
+            }
+
+            if (removedIds.length > 0) {
+              // Reverse exactly what the ledger says was awarded for this event, not the
+              // event type's current value (which may have changed or been deleted since).
+              const awarded = await tx.pointTransaction.groupBy({
+                by: ["userId"],
+                where: { eventId: id, userId: { in: removedIds } },
+                _sum: { amount: true },
+              });
+              await tx.pointTransaction.deleteMany({
+                where: { eventId: id, userId: { in: removedIds } },
+              });
+              for (const row of awarded) {
+                const total = row._sum.amount ?? 0;
+                if (total !== 0) {
+                  await tx.user.update({
+                    where: { id: row.userId },
+                    data: { points: { decrement: total } },
+                  });
+                }
               }
-            });
+            }
           }
-        }
+
+          return updated;
+        });
 
         let participants: Array<{ id: string; username: string }> = [];
         let requestedParticipants: Array<{ id: string; username: string }> = [];
@@ -234,8 +264,17 @@ export async function PUT(
           event: { ...updatedEvent, participants, requestedParticipants, isFromDatabase: true },
         });
       } catch (dbErr) {
-        console.warn("Database update event failed (updating in dev store):", dbErr);
+        console.warn("Database update event failed:", dbErr);
+        // Previously this fell through to the dev store and answered "Event not found",
+        // hiding the real failure from the admin.
+        if (!devFallbacksEnabled) {
+          return NextResponse.json({ error: "Failed to save the event. Please try again." }, { status: 500 });
+        }
       }
+    }
+
+    if (!devFallbacksEnabled) {
+      return NextResponse.json({ error: "Event not found." }, { status: 404 });
     }
 
     const devIndex = devEventsStore.findIndex((e) => e.id === id);
@@ -294,8 +333,19 @@ export async function DELETE(
         });
         deleted = true;
       } catch (dbErr) {
-        console.warn("Database delete event failed (or record not in DB):", dbErr);
+        if (dbErr instanceof Prisma.PrismaClientKnownRequestError && dbErr.code === "P2025") {
+          // Not in the database; may still be a dev-store event below.
+        } else {
+          console.warn("Database delete event failed:", dbErr);
+          if (!devFallbacksEnabled) {
+            return NextResponse.json({ error: "Failed to delete the event. Please try again." }, { status: 500 });
+          }
+        }
       }
+    }
+
+    if (!devFallbacksEnabled && !deleted) {
+      return NextResponse.json({ error: "Event not found." }, { status: 404 });
     }
 
     const devIndex = devEventsStore.findIndex((e) => e.id === id);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { useSession } from "next-auth/react";
 import { ArrowLeft, CheckCircle2, Clock, Database, Download, Loader2, Search, ShieldCheck, User as UserIcon, XCircle } from "lucide-react";
 import { RESIDENCE_LABELS } from "@/lib/validations/profile";
 
@@ -52,6 +53,34 @@ export default function AdminMembersPage() {
   const [status, setStatus] = useState("ALL");
   const [residence, setResidence] = useState("ALL");
   const [exporting, setExporting] = useState<"members" | "database" | null>(null);
+  const [roleChanging, setRoleChanging] = useState<string | null>(null);
+  const { data: session } = useSession();
+
+  const changeRole = async (member: MemberRow) => {
+    const nextRole = member.role === "ADMIN" ? "MEMBER" : "ADMIN";
+    const prompt =
+      nextRole === "ADMIN"
+        ? `Make ${member.username} an admin? They will get full access to the admin dashboard, member data and exports.`
+        : `Remove admin access from ${member.username}?`;
+    if (!confirm(prompt)) return;
+
+    setRoleChanging(member.id);
+    try {
+      const res = await fetch("/api/admin/set-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: member.id, role: nextRole }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Could not change role");
+      setMembers((list) => list?.map((m) => (m.id === member.id ? { ...m, role: nextRole } : m)) ?? null);
+      toast.success(nextRole === "ADMIN" ? `${member.username} is now an admin` : `${member.username} is now a member`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not change role");
+    } finally {
+      setRoleChanging(null);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/admin/members", { cache: "no-store" })
@@ -184,7 +213,7 @@ export default function AdminMembersPage() {
         {members && (
           <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[960px] text-left text-sm">
+              <table className="w-full min-w-240 text-left text-sm">
                 <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-semibold uppercase tracking-wider text-zinc-500">
                   <tr>
                     <th className="px-4 py-3">Member</th>
@@ -240,9 +269,21 @@ export default function AdminMembersPage() {
                           {new Date(m.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Link href={`/profile/${m.id}`} className="whitespace-nowrap text-xs font-semibold text-sky-700 hover:underline">
-                            View profile
-                          </Link>
+                          <div className="flex items-center justify-end gap-3 whitespace-nowrap">
+                            {m.id !== session?.user?.id && (isAdmin || m.status === "APPROVED") && (
+                              <button
+                                type="button"
+                                onClick={() => changeRole(m)}
+                                disabled={roleChanging === m.id}
+                                className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:underline disabled:opacity-50"
+                              >
+                                {isAdmin ? "Remove admin" : "Make admin"}
+                              </button>
+                            )}
+                            <Link href={`/profile/${m.id}`} className="text-xs font-semibold text-sky-700 hover:underline">
+                              View profile
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     );

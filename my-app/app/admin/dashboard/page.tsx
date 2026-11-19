@@ -147,14 +147,15 @@ export default function AdminDashboardPage() {
           reason: pointsReason
         })
       });
-      if (!res.ok) throw new Error("Failed to give points");
-      setGivePointsSuccess(`Successfully gave ${pointsAmount} points to ${selectedUsers.size} user(s).`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to give points");
+      setGivePointsSuccess(json.message || `Successfully gave ${pointsAmount} points.`);
       setSelectedUsers(new Set());
       setPointsAmount("");
       setPointsReason("");
       setTimeout(() => setGivePointsSuccess(null), 3000);
     } catch (err) {
-      toast.error("Error giving points.");
+      toast.error(err instanceof Error ? err.message : "Error giving points.");
     } finally {
       setIsGivingPoints(false);
     }
@@ -214,7 +215,12 @@ export default function AdminDashboardPage() {
     if (!confirm("Are you sure?")) return;
     try {
       const res = await fetch(`/api/admin/event-types/${id}`, { method: "DELETE" });
-      if (res.ok) loadEventTypes();
+      if (res.ok) {
+        loadEventTypes();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error || "Could not delete event type");
+      }
     } catch (err) {
       toast.error("Error deleting event type");
     }

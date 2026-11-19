@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { devFallbacksEnabled } from "@/lib/dev-fallback";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,10 @@ export async function GET() {
     return NextResponse.json({ users, databaseConnected: true });
   } catch (error) {
     console.warn("Database user query failed:", error);
+
+    if (!devFallbacksEnabled) {
+      return NextResponse.json({ error: "Failed to load users. Please try again." }, { status: 500 });
+    }
 
     // Development fallback mock users if database is not yet provisioned
     const fallbackUsers = [

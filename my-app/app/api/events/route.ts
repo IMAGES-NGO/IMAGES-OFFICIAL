@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 import { devEventsStore } from "@/lib/events-store";
+import { devFallbacksEnabled } from "@/lib/dev-fallback";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -81,7 +82,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ events: enrichedEvents, databaseConnected: true });
   } catch (dbErr) {
-    console.warn("Database events query failed (using dev storage):", dbErr);
+    console.warn("Database events query failed:", dbErr);
+
+    if (!devFallbacksEnabled) {
+      return NextResponse.json({ error: "Failed to load events. Please try again." }, { status: 500 });
+    }
 
     let filtered = [...devEventsStore];
 
@@ -232,7 +237,12 @@ export async function POST(request: NextRequest) {
         { status: 201 }
       );
     } catch (dbErr) {
-      console.warn("Database create event failed (using dev in-memory fallback):", dbErr);
+      console.warn("Database create event failed:", dbErr);
+
+      // In production, report the failure instead of "saving" to memory and losing it.
+      if (!devFallbacksEnabled) {
+        return NextResponse.json({ error: "Failed to save the event. Please try again." }, { status: 500 });
+      }
 
       const newDevEvent = {
         id: "evt-local-" + Date.now(),

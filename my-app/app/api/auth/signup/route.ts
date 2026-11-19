@@ -85,7 +85,7 @@ export async function POST(request: Request) {
         data: {
           username,
           passwordHash,
-          role: parsed.data.role,
+          role: "MEMBER",
           otpHash,
           otpExpiresAt,
           verifiedAt: null,
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
           username,
           email,
           passwordHash,
-          role: parsed.data.role,
+          role: "MEMBER",
           status: "UNVERIFIED" as any,
           otpHash,
           otpExpiresAt,

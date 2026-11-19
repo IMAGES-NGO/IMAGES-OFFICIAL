@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import { devFallbacksEnabled } from "@/lib/dev-fallback";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -261,6 +262,10 @@ export async function POST(request: NextRequest) {
       isFromDatabase = true;
     } catch (dbErr) {
       console.warn("Database save skipped or failed (DATABASE_URL may not be active yet):", dbErr);
+      // In production, don't report success for an image the media library won't remember.
+      if (!devFallbacksEnabled) {
+        return NextResponse.json({ error: "Image uploaded but could not be saved. Please try again." }, { status: 500 });
+      }
       savedImage = {
         id: "temp-" + Date.now(),
         title,

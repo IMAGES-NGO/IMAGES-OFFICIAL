@@ -29,9 +29,6 @@ export default function SignupPage() {
   } = useForm<SignupInput>({
     resolver: zodResolver(signupSchema),
     mode: "onBlur",
-    defaultValues: {
-      role: "MEMBER",
-    },
   });
 
   // Handle resend countdown
@@ -297,18 +294,6 @@ export default function SignupPage() {
               </button>
             </div>
             {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
-          </div>
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-black">Account type</label>
-            <select
-              id="role"
-              {...register("role")}
-              className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-black outline-none focus:border-black focus:ring-1 focus:ring-black"
-            >
-              <option value="MEMBER">Member</option>
-              <option value="ADMIN">Admin</option>
-            </select>
-            {errors.role && <p className="mt-1 text-xs text-red-600">{errors.role.message}</p>}
           </div>
           <button
             type="submit"
