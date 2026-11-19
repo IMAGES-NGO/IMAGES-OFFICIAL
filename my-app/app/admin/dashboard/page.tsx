@@ -14,6 +14,7 @@ import {
   MAX_IMAGE_SIZE_BYTES,
 } from "@/lib/image-client";
 import {
+  BarChart3,
   Calendar,
   Clock,
   MapPin,
@@ -701,6 +702,20 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2.5 self-start sm:self-auto">
+            <Link
+              href="/admin/members"
+              className="flex items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50 transition"
+            >
+              <Users className="h-4 w-4" />
+              <span>Members</span>
+            </Link>
+            <Link
+              href="/admin/analytics"
+              className="flex items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-zinc-700 shadow-sm hover:bg-zinc-50 transition"
+            >
+              <BarChart3 className="h-4 w-4" />
+              <span>Analytics</span>
+            </Link>
             <button
               onClick={handleOpenCreateModal}
               className="flex items-center justify-center gap-2 rounded-xl bg-black px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-md hover:bg-zinc-800 transition active:scale-[0.99]"

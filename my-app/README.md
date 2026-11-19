@@ -67,7 +67,39 @@ Users (and admins, on any profile) can edit these optional fields with the **Edi
 
 > After pulling this change, run `npm run prisma:push` to add the new columns to your database, then restart the dev server.
 
-Profile data is assembled in `lib/profile.ts` (`getUserProfile`, `updateUserProfile`, `canViewProfile`). The password hash and OTP fields are never returned. Admins can open a pending user's profile from the "View profile" link on the admin dashboard.
+Profile data is assembled in `lib/profile.ts` (`getUserProfile`, `updateUserProfile`, `canViewProfile`). The password hash and OTP fields are never returned.
+
+## Admin: Members List
+
+`/admin/members` (linked from the admin dashboard header) lists everyone who has signed up, except unverified sign-ups.
+
+- **Colour coding:** admin rows have an amber left border and tint, plus an amber "Admin" badge. Members show a sky "Member" badge. A legend sits above the table, and the same amber marks admins on profile pages and in Excel exports.
+- **Search** by username, email, SID or phone. **Filter** by role, status (approved / pending / rejected) and residence.
+- Each row shows SID, phone, residence, points, events attended and join date, with a link to the member's profile.
+- Data comes from `GET /api/admin/members` (admin only), built by `lib/members.ts`.
+
+## Admin: Excel Export
+
+Two buttons on `/admin/members` download `.xlsx` files, generated server-side with [ExcelJS](https://github.com/exceljs/exceljs):
+
+| Endpoint | File | Contents |
+| --- | --- | --- |
+| `GET /api/admin/export?type=members` | `images-members-YYYY-MM-DD.xlsx` | One sheet with every member and their profile details |
+| `GET /api/admin/export?type=database` | `images-database-YYYY-MM-DD.xlsx` | One sheet per table: Members, Events (participant names resolved), Points Ledger, Event Types, Media |
+
+Every sheet has a bold frozen header row, auto-filters and real date cells, and admin rows are highlighted. Password and OTP hashes are never exported. All values are written as typed cells, never formulas, so user-entered text cannot run as an Excel formula. The export is admin-only (`403` otherwise). The builder lives in `lib/export.ts`.
+
+## Admin: Analytics
+
+`/admin/analytics` (linked from the admin dashboard header) shows:
+
+- **KPI tiles:** approved members (and admins), pending approvals, events (and upcoming), total points awarded, average points per member, and profile completion (approved members with SID, phone, DOB and residence all filled in).
+- **Day scholars vs hostellers:** a share breakdown of approved members.
+- **An interactive pivot workspace** powered by [FINOS Perspective](https://perspective.finos.org). It has preset views for members (joins per month, top members by points, residence split, by batch), events (by type, participants per event) and points (awarded per month, by event type), plus full tables. **Customize view** opens Perspective's panel to group, split, filter, sort or change the chart type. **Export CSV** downloads the current view.
+
+Data comes from `GET /api/admin/analytics` (admin only), built in `lib/analytics.ts`. Analytics rows deliberately leave out email, phone and exact date of birth; age and batch are derived instead. Batch is taken from the first two digits of the SID (e.g. `23104012` → `2023`).
+
+Perspective is WebAssembly-based, so it is **not bundled**. `lib/perspective.ts` loads the official ES-module builds (pinned to `3.8.0`) from `cdn.jsdelivr.net` at runtime, and only on the analytics page. The theme stylesheet is loaded with `crossorigin="anonymous"` so Perspective can read its themes. If you add a Content-Security-Policy later, allow `cdn.jsdelivr.net` for `script-src`, `style-src` and `connect-src`, plus whatever `worker-src` Perspective's worker needs. Check the browser console after enabling a CSP. Admins can open a pending user's profile from the "View profile" link on the admin dashboard.
 
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
