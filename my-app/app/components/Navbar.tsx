@@ -73,6 +73,12 @@ export default function Navbar() {
               >
                 Dashboard
               </Link>
+              <Link
+                href="/profile"
+                className={navLinkClass("/profile")}
+              >
+                Profile
+              </Link>
               {session.user?.role === "ADMIN" && (
                 <Link
                   href="/admin/dashboard"
@@ -163,6 +169,13 @@ export default function Navbar() {
                   className="hover:underline font-semibold"
                 >
                   Member Dashboard
+                </Link>
+                <Link
+                  href="/profile"
+                  onClick={() => setMenuOpen(false)}
+                  className="hover:underline font-semibold"
+                >
+                  My Profile
                 </Link>
                 {session.user?.role === "ADMIN" && (
                   <Link

@@ -41,6 +41,19 @@ The project includes an Admin Dashboard at `/admin/dashboard` for managing NGO e
 4. Run `npm run prisma:push` to sync the `events`, `users`, and `media_images` tables with your PostgreSQL/Neon database.
 5. Navigate to `/admin/dashboard` to create, edit, or delete events, upload event images to Cloudinary, and select members for event participant rosters. Public events can be viewed at `/events`.
 
+## User Profiles
+
+Every user has a profile page showing their identity (username, email, role, status, join date), points stats, events attended and full points history.
+
+| Route | Who can access |
+| --- | --- |
+| `/profile` | The signed-in user (their own profile) |
+| `/profile/[id]` | That user, or any admin |
+| `GET /api/profile` | Signed-in user — returns their own profile JSON |
+| `GET /api/users/[id]/profile` | That user or an admin; others get `403` |
+
+Profile data is assembled in `lib/profile.ts` (`getUserProfile`, `canViewProfile`). The password hash and OTP fields are never returned. Admins can open a pending user's profile from the "View profile" link on the admin dashboard.
+
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

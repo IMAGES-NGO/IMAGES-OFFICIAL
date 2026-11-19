@@ -765,6 +765,12 @@ export default function AdminDashboardPage() {
                       <p className="text-xs text-zinc-500">{pendingUser.email} &middot; {pendingUser.role}</p>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Link
+                        href={`/profile/${pendingUser.id}`}
+                        className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+                      >
+                        View profile
+                      </Link>
                       <button
                         onClick={async () => {
                           try {
