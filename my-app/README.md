@@ -43,16 +43,31 @@ The project includes an Admin Dashboard at `/admin/dashboard` for managing NGO e
 
 ## User Profiles
 
-Every user has a profile page showing their identity (username, email, role, status, join date), points stats, events attended and full points history.
+Every user has a profile page showing their identity (username, email, role, status, join date), personal details, points stats, events attended and full points history.
 
 | Route | Who can access |
 | --- | --- |
 | `/profile` | The signed-in user (their own profile) |
 | `/profile/[id]` | That user, or any admin |
-| `GET /api/profile` | Signed-in user — returns their own profile JSON |
-| `GET /api/users/[id]/profile` | That user or an admin; others get `403` |
+| `GET` / `PATCH /api/profile` | Signed-in user — read or update their own profile |
+| `GET` / `PATCH /api/users/[id]/profile` | That user or an admin; others get `403` |
 
-Profile data is assembled in `lib/profile.ts` (`getUserProfile`, `canViewProfile`). The password hash and OTP fields are never returned. Admins can open a pending user's profile from the "View profile" link on the admin dashboard.
+### Personal details
+
+Users (and admins, on any profile) can edit these optional fields with the **Edit** button on the profile page:
+
+| Field | Column | Rules |
+| --- | --- | --- |
+| SID | `sid` | Exactly 8 digits, unique across users (`409` if taken) |
+| Phone number | `phone` | Indian mobile number; `+91`, spaces and dashes are stripped, stored as 10 digits |
+| Date of birth | `date_of_birth` | `YYYY-MM-DD`, age between 10 and 100 |
+| Day scholar / hosteller | `residence` | `DAY_SCHOLAR` or `HOSTELLER` |
+
+`PATCH` bodies may contain any subset of `sid`, `phone`, `dateOfBirth`, `residence`. Omitted fields are unchanged and an empty string clears a field. Validation errors come back as `400` with `fieldErrors`. Validation lives in `lib/validations/profile.ts`.
+
+> After pulling this change, run `npm run prisma:push` to add the new columns to your database, then restart the dev server.
+
+Profile data is assembled in `lib/profile.ts` (`getUserProfile`, `updateUserProfile`, `canViewProfile`). The password hash and OTP fields are never returned. Admins can open a pending user's profile from the "View profile" link on the admin dashboard.
 
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.

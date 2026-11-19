@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Calendar, Mail, MapPin, ShieldCheck, Trophy, User as UserIcon } from "lucide-react";
+import PersonalDetails from "./PersonalDetails";
 
 interface ProfileData {
   id: string;
@@ -13,6 +14,10 @@ interface ProfileData {
   points: number;
   verifiedAt: string | null;
   createdAt: string;
+  sid: string | null;
+  phone: string | null;
+  dateOfBirth: string | null;
+  residence: "DAY_SCHOLAR" | "HOSTELLER" | null;
   history: Array<{ id: string; amount: number; reason: string; createdAt: string }>;
   events: Array<{ id: string; title: string; eventType: string; eventDate: string; location: string; status: string }>;
   stats: { eventsAttended: number; totalEarned: number; totalDeducted: number };
@@ -100,6 +105,13 @@ export default function ProfileView({ userId, viewedByAdmin = false }: { userId?
             </p>
           </div>
         </div>
+
+        <PersonalDetails<ProfileData>
+          key={profile.id}
+          details={profile}
+          saveUrl={userId ? `/api/users/${encodeURIComponent(userId)}/profile` : "/api/profile"}
+          onSaved={setProfile}
+        />
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
